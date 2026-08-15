@@ -1,0 +1,115 @@
+
+fn to_le2(n) {
+    give [n & 255, (n >> 8) & 255]
+}
+
+fn to_le4(n) {
+    give [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255]
+}
+
+fn to_le8(n) {
+    give [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255, (n >> 32) & 255, (n >> 40) & 255, (n >> 48) & 255, (n >> 56) & 255]
+}
+
+fn join_arrays(a1, a2) {
+    r = a1
+    i = 0
+    while (i < size(a2)) {
+        r = push(r, a2[i])
+        i = i + 1
+    }
+    give r
+}
+
+fn zeros(n) {
+    r = []
+    i = 0
+    while (i < n) {
+        r = push(r, 0)
+        i = i + 1
+    }
+    give r
+}
+
+
+fn make_pe(code) {
+    code_size = size(code)
+
+    raw_size = code_size
+    if (raw_size % 512 != 0) { raw_size = (raw_size / 512 + 1) * 512 }
+    size_of_headers = 512
+    size_of_image = 8192
+
+
+    dos = [77, 90, 144, 0, 3, 0, 0, 0, 4, 0, 0, 0, 255, 255, 0, 0,
+           184, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,
+           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0]
+
+
+    coff = [80, 69, 0, 0]
+    coff = join_arrays(coff, to_le2(0x8664))
+    coff = join_arrays(coff, to_le2(1))
+    coff = join_arrays(coff, to_le4(0))
+    coff = join_arrays(coff, to_le4(0))
+    coff = join_arrays(coff, to_le4(0))
+    coff = join_arrays(coff, to_le2(240))
+    coff = join_arrays(coff, to_le2(0x0022))
+
+
+    opt = []
+    opt = join_arrays(opt, to_le2(0x020B))
+    opt = join_arrays(opt, [14, 0])
+    opt = join_arrays(opt, to_le4(code_size))
+    opt = join_arrays(opt, to_le4(0))
+    opt = join_arrays(opt, to_le4(0))
+    opt = join_arrays(opt, to_le4(0x1000))
+    opt = join_arrays(opt, to_le4(0x1000))
+    opt = join_arrays(opt, to_le8(0x400000))
+    opt = join_arrays(opt, to_le4(0x1000))
+    opt = join_arrays(opt, to_le4(0x200))
+    opt = join_arrays(opt, to_le2(6))
+    opt = join_arrays(opt, to_le2(0))
+    opt = join_arrays(opt, to_le2(0))
+    opt = join_arrays(opt, to_le2(0))
+    opt = join_arrays(opt, to_le2(6))
+    opt = join_arrays(opt, to_le2(0))
+    opt = join_arrays(opt, to_le4(0))
+    opt = join_arrays(opt, to_le4(size_of_image))
+    opt = join_arrays(opt, to_le4(size_of_headers))
+    opt = join_arrays(opt, to_le4(0))
+    opt = join_arrays(opt, to_le2(3))
+    opt = join_arrays(opt, to_le2(0))
+    opt = join_arrays(opt, to_le8(0x100000))
+    opt = join_arrays(opt, to_le8(0x1000))
+    opt = join_arrays(opt, to_le8(0x100000))
+    opt = join_arrays(opt, to_le8(0x1000))
+    opt = join_arrays(opt, to_le4(0))
+    opt = join_arrays(opt, to_le4(16))
+    opt = join_arrays(opt, zeros(128))
+
+
+    sec = [46, 116, 101, 120, 116, 0, 0, 0]
+    sec = join_arrays(sec, to_le4(code_size))
+    sec = join_arrays(sec, to_le4(0x1000))
+    sec = join_arrays(sec, to_le4(raw_size))
+    sec = join_arrays(sec, to_le4(0x200))
+    sec = join_arrays(sec, to_le4(0))
+    sec = join_arrays(sec, to_le4(0))
+    sec = join_arrays(sec, to_le2(0))
+    sec = join_arrays(sec, to_le2(0))
+    sec = join_arrays(sec, to_le4(0x60000020))
+
+
+    result = join_arrays(dos, coff)
+    result = join_arrays(result, opt)
+    result = join_arrays(result, sec)
+    while (size(result) < size_of_headers) {
+        result = push(result, 0)
+    }
+    result = join_arrays(result, code)
+    while (size(result) < size_of_headers + raw_size) {
+        result = push(result, 0)
+    }
+    give result
+}

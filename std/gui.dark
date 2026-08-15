@@ -1,0 +1,49 @@
+fn heading(t) {
+    gui_heading(t)
+    give 0
+}
+
+fn label(t) {
+    gui_label(t)
+    give 0
+}
+
+fn mono(t) {
+    gui_mono(t)
+    give 0
+}
+
+fn colored(t, r, g, b) {
+    gui_colored(t, r, g, b)
+    give 0
+}
+
+fn button(t) {
+    give gui_button(t)
+}
+
+fn sep() {
+    gui_separator()
+    give 0
+}
+
+fn input(id, default) {
+    give gui_text(id, default)
+}
+
+fn editor(id, default) {
+    give gui_textarea(id, default, 16)
+}
+
+fn state_get(key) {
+    give gui_get(key)
+}
+
+fn state_set(key, val) {
+    gui_set(key, val)
+    give 0
+}
+
+fn run(code) {
+    give run_dark(code)
+}

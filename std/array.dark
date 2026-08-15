@@ -1,0 +1,215 @@
+
+fn range(start, end) {
+    r = []
+    i = start
+    while (i <= end) {
+        r = push(r, i)
+        i = i + 1
+    }
+    give r
+}
+
+fn range_step(start, end, step) {
+    r = []
+    i = start
+    while (i <= end) {
+        r = push(r, i)
+        i = i + step
+    }
+    give r
+}
+
+fn map(arr, f) {
+    r = []
+    i = 0
+    while (i < size(arr)) {
+        r = push(r, f(arr[i]))
+        i = i + 1
+    }
+    give r
+}
+
+fn filter(arr, f) {
+    r = []
+    i = 0
+    while (i < size(arr)) {
+        if (f(arr[i])) {
+            r = push(r, arr[i])
+        }
+        i = i + 1
+    }
+    give r
+}
+
+fn reduce(arr, f, init) {
+    acc = init
+    i = 0
+    while (i < size(arr)) {
+        acc = f(acc, arr[i])
+        i = i + 1
+    }
+    give acc
+}
+
+fn zip(a, b) {
+    r = []
+    n = size(a)
+    if (size(b) < n) { n = size(b) }
+    i = 0
+    while (i < n) {
+        r = push(r, [a[i], b[i]])
+        i = i + 1
+    }
+    give r
+}
+
+fn flatten(arr) {
+    r = []
+    i = 0
+    while (i < size(arr)) {
+        j = 0
+        while (j < size(arr[i])) {
+            r = push(r, arr[i][j])
+            j = j + 1
+        }
+        i = i + 1
+    }
+    give r
+}
+
+fn unique(arr) {
+    r = []
+    i = 0
+    while (i < size(arr)) {
+        if (!arr_contains(r, arr[i])) {
+            r = push(r, arr[i])
+        }
+        i = i + 1
+    }
+    give r
+}
+
+fn arr_contains(arr, x) {
+    i = 0
+    while (i < size(arr)) {
+        if (arr[i] == x) { give 1 }
+        i = i + 1
+    }
+    give 0
+}
+
+fn index_of_arr(arr, x) {
+    i = 0
+    while (i < size(arr)) {
+        if (arr[i] == x) { give i }
+        i = i + 1
+    }
+    give 0 - 1
+}
+
+fn chunk(arr, n) {
+    r = []
+    i = 0
+    while (i < size(arr)) {
+        c = []
+        j = i
+        while (j < i + n && j < size(arr)) {
+            c = push(c, arr[j])
+            j = j + 1
+        }
+        r = push(r, c)
+        i = i + n
+    }
+    give r
+}
+
+fn take(arr, n) {
+    r = []
+    i = 0
+    while (i < n && i < size(arr)) {
+        r = push(r, arr[i])
+        i = i + 1
+    }
+    give r
+}
+
+fn drop(arr, n) {
+    r = []
+    i = n
+    while (i < size(arr)) {
+        r = push(r, arr[i])
+        i = i + 1
+    }
+    give r
+}
+
+fn sum(arr) {
+    s = 0
+    i = 0
+    while (i < size(arr)) {
+        s = s + arr[i]
+        i = i + 1
+    }
+    give s
+}
+
+fn join_all(arr, sep) {
+    r = ""
+    i = 0
+    while (i < size(arr)) {
+        if (i > 0) { r = r + sep }
+        r = r + to_string(arr[i])
+        i = i + 1
+    }
+    give r
+}
+
+fn product(arr) {
+    p = 1
+    i = 0
+    while (i < size(arr)) {
+        p = p * arr[i]
+        i = i + 1
+    }
+    give p
+}
+
+fn min(arr) {
+    if (size(arr) == 0) { give null }
+    m = arr[0]
+    i = 1
+    while (i < size(arr)) {
+        if (arr[i] < m) { m = arr[i] }
+        i = i + 1
+    }
+    give m
+}
+
+fn max(arr) {
+    if (size(arr) == 0) { give null }
+    m = arr[0]
+    i = 1
+    while (i < size(arr)) {
+        if (arr[i] > m) { m = arr[i] }
+        i = i + 1
+    }
+    give m
+}
+
+fn any(arr, f) {
+    i = 0
+    while (i < size(arr)) {
+        if (f(arr[i])) { give 1 }
+        i = i + 1
+    }
+    give 0
+}
+
+fn all(arr, f) {
+    i = 0
+    while (i < size(arr)) {
+        if (!f(arr[i])) { give 0 }
+        i = i + 1
+    }
+    give 1
+}

@@ -1,0 +1,72 @@
+fn cstr(s) {
+    buf = alloc(size(s) + 1)
+    i = 0
+    while (i < size(s)) {
+        poke8(buf, i, ord(char_at(s, i)))
+        i = i + 1
+    }
+    poke8(buf, size(s), 0)
+    give buf
+}
+
+fn write_fd(fd, s) {
+    buf = cstr(s)
+    n = syscall(1, fd, buf, size(s), 0, 0, 0)
+    free(buf)
+    give n
+}
+
+fn read_fd(fd, max) {
+    buf = alloc(max)
+    n = syscall(0, fd, buf, max, 0, 0, 0)
+    arr = []
+    i = 0
+    while (i < n) {
+        arr = push(arr, peek8(buf, i))
+        i = i + 1
+    }
+    free(buf)
+    give bytes_to_str(arr)
+}
+
+fn write_file(path, content) {
+    p = cstr(path)
+    fd = syscall(2, p, 577, 420, 0, 0, 0)
+    free(p)
+    if (fd < 0) { give 0 }
+    c = cstr(content)
+    syscall(1, fd, c, size(content), 0, 0, 0)
+    free(c)
+    syscall(3, fd, 0, 0, 0, 0, 0)
+    give 1
+}
+
+fn read_file(path) {
+    p = cstr(path)
+    fd = syscall(2, p, 0, 0, 0, 0, 0)
+    free(p)
+    if (fd < 0) { give "" }
+    s = read_fd(fd, 65536)
+    syscall(3, fd, 0, 0, 0, 0, 0)
+    give s
+}
+
+fn print(s) {
+    write_fd(1, s)
+    give size(s)
+}
+
+fn println(s) {
+    print(s)
+    write_fd(1, "\n")
+    give size(s)
+}
+
+fn getpid() {
+    give syscall(39, 0, 0, 0, 0, 0, 0)
+}
+
+fn exit(code) {
+    syscall(60, code, 0, 0, 0, 0, 0)
+    give 0
+}

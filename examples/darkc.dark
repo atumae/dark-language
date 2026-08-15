@@ -1,0 +1,65 @@
+extract parser
+extract codegen
+
+a = args()
+src_path = ""
+out_path = ""
+verbose = 0
+i = 1
+while (i < size(a)) {
+    arg = a[i]
+    if (arg == "-o") {
+        i = i + 1
+        if (i < size(a)) {
+            out_path = a[i]
+        }
+    } else {
+        if (arg == "-v" || arg == "--verbose") {
+            verbose = 1
+        } else {
+            if (char_at(arg, 0) == "-") {
+                emit("error: unknown flag " + arg)
+                exit_code(2)
+            } else {
+                if (src_path == "") {
+                    src_path = arg
+                } else {
+                    if (out_path == "") {
+                        out_path = arg
+                    }
+                }
+            }
+        }
+    }
+    i = i + 1
+}
+if (src_path == "") {
+    emit("usage: darkc <src.dark> [-o <out>]")
+    exit_code(2)
+}
+if (out_path == "") {
+    out_path = "/tmp/out"
+}
+
+src = slurp(src_path)
+if (size(src) == 0) {
+    emit("error: cannot read " + src_path)
+    exit_code(1)
+}
+toks = tokenize(src)
+ast = parse_program(toks)
+if (verbose == 1) {
+    emit("parsed " + to_string(size(ast)) + " top-level statements")
+}
+result = compile_auto(ast)
+if (result[0] == "error") {
+    errs = result[1]
+    j = 0
+    while (j < size(errs)) {
+        emit("error: " + errs[j])
+        j = j + 1
+    }
+    exit_code(1)
+}
+make_exe(out_path, result[1])
+emit("compiled " + src_path + " -> " + out_path)

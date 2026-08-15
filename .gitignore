@@ -1,0 +1,8 @@
+target/
+*.o
+*.bin
+*.elf
+*.exe
+darkc.new
+__pycache__/
+*.pyc

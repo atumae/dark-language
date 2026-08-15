@@ -1,0 +1,38 @@
+
+fn has_key(obj, key) {
+    give obj[key] != null
+}
+
+fn get_or(obj, key, default) {
+    v = obj[key]
+    if (v == null) { give default }
+    give v
+}
+
+fn size_map(obj) {
+    give size(keys(obj))
+}
+
+fn merge(a, b) {
+    ks = keys(b)
+    r = a
+    i = 0
+    while (i < size(ks)) {
+        k = ks[i]
+        r[k] = b[k]
+        i = i + 1
+    }
+    give r
+}
+
+fn to_pairs(obj) {
+    ks = keys(obj)
+    r = []
+    i = 0
+    while (i < size(ks)) {
+        k = ks[i]
+        r = push(r, [k, obj[k]])
+        i = i + 1
+    }
+    give r
+}

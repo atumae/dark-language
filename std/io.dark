@@ -1,0 +1,28 @@
+
+fn read_file(path) {
+    give slurp(path)
+}
+
+fn write_file(path, content) {
+    give spit(path, content)
+}
+
+fn read_lines(path) {
+    give split(slurp(path), "\n")
+}
+
+fn write_lines(path, lines) {
+    give spit(path, join(lines, "\n"))
+}
+
+fn exists(path) {
+    give slurp(path) != ""
+}
+
+fn append_file(path, content) {
+    give spit(path, slurp(path) + content)
+}
+
+fn file_size(path) {
+    give size(slurp(path))
+}

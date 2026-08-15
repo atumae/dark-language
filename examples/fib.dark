@@ -1,0 +1,9 @@
+fn fib(n) {
+    if (n < 2) {
+        give n
+    }
+    give fib(n - 1) + fib(n - 2)
+}
+
+emit("fib(10) = ")
+exit_code(fib(10))

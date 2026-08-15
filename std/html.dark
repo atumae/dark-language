@@ -1,0 +1,37 @@
+fn escape(s) {
+    give html_escape(s)
+}
+
+fn page(title, body) {
+    give "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + escape(title) + "</title></head><body>" + body + "</body></html>"
+}
+
+fn h1(s) {
+    give "<h1>" + escape(s) + "</h1>"
+}
+
+fn h2(s) {
+    give "<h2>" + escape(s) + "</h2>"
+}
+
+fn p(s) {
+    give "<p>" + escape(s) + "</p>"
+}
+
+fn a(href, text) {
+    give "<a href=\"" + escape(href) + "\">" + escape(text) + "</a>"
+}
+
+fn ul(items) {
+    r = "<ul>"
+    i = 0
+    while (i < size(items)) {
+        r = r + "<li>" + escape(items[i]) + "</li>"
+        i = i + 1
+    }
+    give r + "</ul>"
+}
+
+fn style() {
+    give "<style>body{font-family:system-ui;max-width:720px;margin:2rem auto;padding:0 1rem;color:#e8e6f5;background:#0d0b1e}a{color:#8be9fd}</style>"
+}

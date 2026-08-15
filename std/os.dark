@@ -1,0 +1,48 @@
+fn os_name() {
+    give os()
+}
+
+fn shell(cmd) {
+    give system(cmd)
+}
+
+fn argv() {
+    give args()
+}
+
+fn getenv(name) {
+    give env(name)
+}
+
+fn setenv(name, value) {
+    give system("export " + name + "=" + value)
+}
+
+fn exit(code) {
+    stop(code)
+    give 0
+}
+
+fn cwd() {
+    give trim(system("pwd"))
+}
+
+fn hostname() {
+    give trim(system("hostname"))
+}
+
+fn uname() {
+    give trim(system("uname -a"))
+}
+
+fn cpu_count() {
+    give to_int(trim(system("nproc")))
+}
+
+fn memory_total() {
+    give to_int(trim(system("free -b | awk '/Mem:/ {print $2}'")))
+}
+
+fn syscall6(num, a1, a2, a3, a4, a5, a6) {
+    give syscall(num, a1, a2, a3, a4, a5, a6)
+}

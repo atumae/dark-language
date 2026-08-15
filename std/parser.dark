@@ -1,0 +1,402 @@
+fn is_digit(ch) {
+    give ch >= "0" && ch <= "9"
+}
+
+fn is_alpha(ch) {
+    give (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch == "_"
+}
+
+fn is_hex(ch) {
+    give is_digit(ch) || (ch >= "a" && ch <= "f") || (ch >= "A" && ch <= "F")
+}
+
+fn hex_val(ch) {
+    if (is_digit(ch)) { give to_int(ch) }
+    if (ch >= "a" && ch <= "f") { give ord(ch) - 87 }
+    if (ch >= "A" && ch <= "F") { give ord(ch) - 55 }
+    give 0
+}
+
+fn tokenize(src) {
+    tokens = []
+    i = 0
+    n = size(src)
+    while (i < n) {
+        ch = char_at(src, i)
+        if (ch == " " || ch == "\t" || ch == "\r" || ch == "\n") {
+            i = i + 1
+            skip
+        }
+        if (ch == "/" && i + 1 < n && char_at(src, i + 1) == "/") {
+            while (i < n && char_at(src, i) != "\n") {
+                i = i + 1
+            }
+            skip
+        }
+        if (is_digit(ch)) {
+            if (ch == "0" && i + 1 < n && char_at(src, i + 1) == "x") {
+                i = i + 2
+                v = 0
+                while (i < n && is_hex(char_at(src, i))) {
+                    v = v * 16 + hex_val(char_at(src, i))
+                    i = i + 1
+                }
+                tokens = push(tokens, v)
+                skip
+            }
+            v = 0
+            while (i < n && is_digit(char_at(src, i))) {
+                v = v * 10 + to_int(char_at(src, i))
+                i = i + 1
+            }
+            tokens = push(tokens, v)
+            skip
+        }
+        if (is_alpha(ch)) {
+            s = ""
+            while (i < n && (is_alpha(char_at(src, i)) || is_digit(char_at(src, i)))) {
+                s = s + char_at(src, i)
+                i = i + 1
+            }
+            tokens = push(tokens, s)
+            skip
+        }
+        if (ch == "\"") {
+            s = ""
+            i = i + 1
+            while (i < n && char_at(src, i) != "\"") {
+                if (char_at(src, i) == "\\" && i + 1 < n) {
+                    i = i + 1
+                    c = char_at(src, i)
+                    if (c == "n") { s = s + "\n" }
+                    if (c == "t") { s = s + "\t" }
+                    if (c == "r") { s = s + "\r" }
+                    if (c == "\"") { s = s + "\"" }
+                    if (c == "\\") { s = s + "\\" }
+                    if (c != "n" && c != "t" && c != "r" && c != "\"" && c != "\\") { s = s + c }
+                } else {
+                    s = s + char_at(src, i)
+                }
+                i = i + 1
+            }
+            i = i + 1
+            tokens = push(tokens, "\"" + s + "\"")
+            skip
+        }
+        if (ch == "=" && i + 1 < n && char_at(src, i + 1) == "=") {
+            tokens = push(tokens, "==")
+            i = i + 2
+            skip
+        }
+        if (ch == "!" && i + 1 < n && char_at(src, i + 1) == "=") {
+            tokens = push(tokens, "!=")
+            i = i + 2
+            skip
+        }
+        if (ch == ">" && i + 1 < n && char_at(src, i + 1) == "=") {
+            tokens = push(tokens, ">=")
+            i = i + 2
+            skip
+        }
+        if (ch == "<" && i + 1 < n && char_at(src, i + 1) == "=") {
+            tokens = push(tokens, "<=")
+            i = i + 2
+            skip
+        }
+        if (ch == ">" && i + 1 < n && char_at(src, i + 1) == ">") {
+            tokens = push(tokens, ">>")
+            i = i + 2
+            skip
+        }
+        if (ch == "<" && i + 1 < n && char_at(src, i + 1) == "<") {
+            tokens = push(tokens, "<<")
+            i = i + 2
+            skip
+        }
+        if (ch == "&" && i + 1 < n && char_at(src, i + 1) == "&") {
+            tokens = push(tokens, "&")
+            i = i + 2
+            skip
+        }
+        if (ch == "|" && i + 1 < n && char_at(src, i + 1) == "|") {
+            tokens = push(tokens, "|")
+            i = i + 2
+            skip
+        }
+        if (ch == "+" || ch == "-" || ch == "*" || ch == "/" || ch == "%" || ch == "=" || ch == ">" || ch == "<" || ch == "!" || ch == "&" || ch == "|" || ch == "^" || ch == "~" || ch == "(" || ch == ")" || ch == "{" || ch == "}" || ch == "[" || ch == "]" || ch == "," || ch == ".") {
+            tokens = push(tokens, ch)
+            i = i + 1
+            skip
+        }
+        i = i + 1
+    }
+    give tokens
+}
+
+fn parse_program(tokens) {
+    pos = [0]
+    stmts = []
+    while (pos[0] < size(tokens)) {
+        s = parse_stmt(tokens, pos)
+        if (s != null) {
+            stmts = push(stmts, s)
+        }
+    }
+    give stmts
+}
+
+fn parse_block(tokens, pos) {
+    pos[0] = pos[0] + 1
+    stmts = []
+    while (pos[0] < size(tokens) && tokens[pos[0]] != "}") {
+        s = parse_stmt(tokens, pos)
+        if (s != null) {
+            stmts = push(stmts, s)
+        }
+    }
+    pos[0] = pos[0] + 1
+    give stmts
+}
+
+fn parse_stmt(tokens, pos) {
+    t = tokens[pos[0]]
+    if (t == "fn") {
+        pos[0] = pos[0] + 1
+        name = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        params = []
+        while (tokens[pos[0]] != ")") {
+            if (tokens[pos[0]] != ",") {
+                params = push(params, tokens[pos[0]])
+            }
+            pos[0] = pos[0] + 1
+        }
+        pos[0] = pos[0] + 1
+        body = parse_block(tokens, pos)
+        give ["fn", name, params, body]
+    }
+    if (t == "if") {
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        cond = parse_expr(tokens, pos)
+        pos[0] = pos[0] + 1
+        thenb = parse_block(tokens, pos)
+        elseb = []
+        if (tokens[pos[0]] == "else") {
+            pos[0] = pos[0] + 1
+            if (tokens[pos[0]] == "{") {
+                elseb = parse_block(tokens, pos)
+            }
+        }
+        give ["if", cond, thenb, elseb]
+    }
+    if (t == "while") {
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        cond = parse_expr(tokens, pos)
+        pos[0] = pos[0] + 1
+        body = parse_block(tokens, pos)
+        give ["while", cond, body]
+    }
+    if (t == "skip") {
+        pos[0] = pos[0] + 1
+        give ["skip"]
+    }
+    if (t == "break") {
+        pos[0] = pos[0] + 1
+        give ["break"]
+    }
+    if (t == "extract") {
+        pos[0] = pos[0] + 1
+        name = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        give ["extract", name]
+    }
+    if (t == "give") {
+        pos[0] = pos[0] + 1
+        e = parse_expr(tokens, pos)
+        give ["ret", e]
+    }
+    if (t == "exit_code") {
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        e = parse_expr(tokens, pos)
+        pos[0] = pos[0] + 1
+        give ["exit_code", e]
+    }
+    if (t == "emit") {
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        if (tokens[pos[0]] != ")") {
+            e = parse_expr(tokens, pos)
+            pos[0] = pos[0] + 1
+            give ["emit", e]
+        }
+        pos[0] = pos[0] + 1
+        give null
+    }
+    e = parse_expr(tokens, pos)
+    if (pos[0] < size(tokens) && tokens[pos[0]] == "=") {
+        pos[0] = pos[0] + 1
+        v = parse_expr(tokens, pos)
+        if (e[0] == "var") {
+            give ["set", e[1], v]
+        }
+        if (e[0] == "index") {
+            give ["set_index", e[1], e[2], v]
+        }
+        give null
+    }
+    give ["expr_stmt", e]
+}
+
+fn parse_expr(tokens, pos) {
+    give parse_bitor(tokens, pos)
+}
+
+fn parse_bitor(tokens, pos) {
+    left = parse_bitxor(tokens, pos)
+    while (pos[0] < size(tokens) && tokens[pos[0]] == "|") {
+        pos[0] = pos[0] + 1
+        r = parse_bitxor(tokens, pos)
+        left = ["binop", left, "|", r]
+    }
+    give left
+}
+
+fn parse_bitxor(tokens, pos) {
+    left = parse_bitand(tokens, pos)
+    while (pos[0] < size(tokens) && tokens[pos[0]] == "^") {
+        pos[0] = pos[0] + 1
+        r = parse_bitand(tokens, pos)
+        left = ["binop", left, "^", r]
+    }
+    give left
+}
+
+fn parse_bitand(tokens, pos) {
+    left = parse_cmp(tokens, pos)
+    while (pos[0] < size(tokens) && tokens[pos[0]] == "&") {
+        pos[0] = pos[0] + 1
+        r = parse_cmp(tokens, pos)
+        left = ["binop", left, "&", r]
+    }
+    give left
+}
+
+fn parse_cmp(tokens, pos) {
+    left = parse_shift(tokens, pos)
+    while (pos[0] < size(tokens) && (tokens[pos[0]] == "==" || tokens[pos[0]] == "!=" || tokens[pos[0]] == ">" || tokens[pos[0]] == "<" || tokens[pos[0]] == ">=" || tokens[pos[0]] == "<=")) {
+        op = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        r = parse_shift(tokens, pos)
+        left = ["cmp", left, op, r]
+    }
+    give left
+}
+
+fn parse_shift(tokens, pos) {
+    left = parse_sum(tokens, pos)
+    while (pos[0] < size(tokens) && (tokens[pos[0]] == "<<" || tokens[pos[0]] == ">>")) {
+        op = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        r = parse_sum(tokens, pos)
+        left = ["binop", left, op, r]
+    }
+    give left
+}
+
+fn parse_sum(tokens, pos) {
+    left = parse_product(tokens, pos)
+    while (pos[0] < size(tokens) && (tokens[pos[0]] == "+" || tokens[pos[0]] == "-")) {
+        op = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        r = parse_product(tokens, pos)
+        left = ["binop", left, op, r]
+    }
+    give left
+}
+
+fn parse_product(tokens, pos) {
+    left = parse_unary(tokens, pos)
+    while (pos[0] < size(tokens) && (tokens[pos[0]] == "*" || tokens[pos[0]] == "/" || tokens[pos[0]] == "%")) {
+        op = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        r = parse_unary(tokens, pos)
+        left = ["binop", left, op, r]
+    }
+    give left
+}
+
+fn parse_unary(tokens, pos) {
+    if (tokens[pos[0]] == "-" || tokens[pos[0]] == "!" || tokens[pos[0]] == "~") {
+        op = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        e = parse_unary(tokens, pos)
+        if (op == "-") { give ["binop", ["int", 0], "-", e] }
+        if (op == "~") { give ["binop", e, "^", ["int", -1]] }
+        if (op == "!") { give ["cmp", e, "==", ["int", 0]] }
+    }
+    give parse_postfix(tokens, pos)
+}
+
+fn parse_postfix(tokens, pos) {
+    e = parse_primary(tokens, pos)
+    while (pos[0] < size(tokens)) {
+        if (tokens[pos[0]] == "(") {
+            pos[0] = pos[0] + 1
+            args = []
+            while (pos[0] < size(tokens) && tokens[pos[0]] != ")") {
+                if (tokens[pos[0]] != ",") {
+                    args = push(args, parse_expr(tokens, pos))
+                } else {
+                    pos[0] = pos[0] + 1
+                }
+            }
+            pos[0] = pos[0] + 1
+            if (e[0] == "var") {
+                e = ["call", e[1], args]
+            }
+        } else {
+            if (tokens[pos[0]] == "[") {
+                pos[0] = pos[0] + 1
+                idx = parse_expr(tokens, pos)
+                pos[0] = pos[0] + 1
+                e = ["index", e, idx]
+            } else {
+                give e
+            }
+        }
+    }
+    give e
+}
+
+fn parse_primary(tokens, pos) {
+    t = tokens[pos[0]]
+    pos[0] = pos[0] + 1
+    if (kind(t) == 1) { give ["int", t] }
+    if (char_at(t, 0) == "\"") { give ["str", substring(t, 1, size(t) - 1)] }
+    if (t == "(") {
+        e = parse_expr(tokens, pos)
+        pos[0] = pos[0] + 1
+        give e
+    }
+    if (t == "[") {
+        items = []
+        while (pos[0] < size(tokens) && tokens[pos[0]] != "]") {
+            if (tokens[pos[0]] != ",") {
+                items = push(items, parse_expr(tokens, pos))
+            } else {
+                pos[0] = pos[0] + 1
+            }
+        }
+        pos[0] = pos[0] + 1
+        give ["arr", items]
+    }
+    if (t == "{") {
+        pos[0] = pos[0] + 1
+        give ["obj"]
+    }
+    give ["var", t]
+}

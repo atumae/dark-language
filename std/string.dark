@@ -1,0 +1,124 @@
+
+fn upper(s) {
+    up = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lo = "abcdefghijklmnopqrstuvwxyz"
+    r = ""
+    i = 0
+    while (i < size(s)) {
+        c = char_at(s, i)
+        o = ord(c)
+        if (o >= 97 && o <= 122) {
+            c = char_at(up, o - 97)
+        }
+        r = r + c
+        i = i + 1
+    }
+    give r
+}
+
+fn lower(s) {
+    up = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lo = "abcdefghijklmnopqrstuvwxyz"
+    r = ""
+    i = 0
+    while (i < size(s)) {
+        c = char_at(s, i)
+        o = ord(c)
+        if (o >= 65 && o <= 90) {
+            c = char_at(lo, o - 65)
+        }
+        r = r + c
+        i = i + 1
+    }
+    give r
+}
+
+fn capitalize(s) {
+    if (size(s) == 0) { give s }
+    give upper(char_at(s, 0)) + substring(s, 1)
+}
+
+fn title(s) {
+    words = split(s, " ")
+    r = []
+    i = 0
+    while (i < size(words)) {
+        r = push(r, capitalize(words[i]))
+        i = i + 1
+    }
+    give join(r, " ")
+}
+
+fn reverse_str(s) {
+    r = ""
+    i = size(s) - 1
+    while (i >= 0) {
+        r = r + char_at(s, i)
+        i = i - 1
+    }
+    give r
+}
+
+fn repeat_str(s, n) {
+    r = ""
+    i = 0
+    while (i < n) {
+        r = r + s
+        i = i + 1
+    }
+    give r
+}
+
+fn count(s, sub) {
+    c = 0
+    i = 0
+    n = size(s)
+    m = size(sub)
+    while (i + m <= n) {
+        if (substring(s, i, i + m) == sub) {
+            c = c + 1
+            i = i + m
+        } else {
+            i = i + 1
+        }
+    }
+    give c
+}
+
+fn pad_left(s, n, ch) {
+    if (size(s) >= n) { give s }
+    give repeat_str(ch, n - size(s)) + s
+}
+
+fn pad_right(s, n, ch) {
+    if (size(s) >= n) { give s }
+    give s + repeat_str(ch, n - size(s))
+}
+
+fn is_empty(s) {
+    give size(s) == 0
+}
+
+fn is_blank(s) {
+    give trim(s) == ""
+}
+
+fn is_palindrome(s) {
+    give s == reverse_str(s)
+}
+
+fn split_lines(s) {
+    give split(s, "\n")
+}
+
+fn split_words(s) {
+    give split(trim(s), " ")
+}
+
+fn starts_with_num(s, sub) {
+    give starts_with(s, sub)
+}
+
+fn ends_with_num(s, sub) {
+    give ends_with(s, sub)
+}

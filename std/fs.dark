@@ -1,0 +1,57 @@
+fn read_text(path) {
+    give slurp(path)
+}
+
+fn write_text(path, content) {
+    spit(path, content)
+    give 1
+}
+
+fn read_lines(path) {
+    give split(slurp(path), "\n")
+}
+
+fn write_lines(path, lines) {
+    spit(path, join(lines, "\n"))
+    give 1
+}
+
+fn append_text(path, content) {
+    spit(path, slurp(path) + content)
+    give 1
+}
+
+fn ls(path) {
+    give listdir(path)
+}
+
+fn mk(path) {
+    give mkdir(path)
+}
+
+fn rm(path) {
+    give remove(path)
+}
+
+fn is_file(path) {
+    give exists(path)
+}
+
+fn is_dir(path) {
+    give exists(path)
+}
+
+fn copy(src, dst) {
+    spit(dst, slurp(src))
+    give 1
+}
+
+fn move(src, dst) {
+    spit(dst, slurp(src))
+    remove(src)
+    give 1
+}
+
+fn fsize(path) {
+    give file_size(path)
+}
