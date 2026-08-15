@@ -145,6 +145,18 @@ fn gen_call_runtime(ctx, name, nargs) {
     give ctx
 }
 
+fn gen_win_call(ctx, id) {
+    emitc(ctx, [255, 21])
+    pos = size(ctx["code"])
+    ctx["fix"] = push(ctx["fix"], [pos, "win", id])
+    emitc(ctx, zeros(4))
+    give ctx
+}
+
+fn align_up(n, a) {
+    give ((n + a - 1) / a) * a
+}
+
 fn gen_expr(ctx, e) {
     k = e[0]
     if (k == "int") {
@@ -302,7 +314,7 @@ fn gen_stmt(ctx, s) {
             if (ctx["target"] == "windows") {
                 emitc(ctx, [72, 131, 236, 40])
                 emitc(ctx, [72, 199, 193, 245, 255, 255, 255])
-                emitc(ctx, [255, 20, 37, 40, 48, 64, 0])
+                gen_win_call(ctx, 0)
                 emitc(ctx, [72, 137, 193])
                 emitc(ctx, [72, 186])
                 pos = size(ctx["code"])
@@ -316,7 +328,7 @@ fn gen_stmt(ctx, s) {
                 ctx["fix"] = push(ctx["fix"], [pos, "written", 0])
                 emitc(ctx, zeros(8))
                 emitc(ctx, [72, 199, 68, 36, 32, 0, 0, 0, 0])
-                emitc(ctx, [255, 20, 37, 48, 48, 64, 0])
+                gen_win_call(ctx, 1)
                 emitc(ctx, [72, 131, 196, 40])
             } else {
                 emitc(ctx, [184, 1, 0, 0, 0, 191, 1, 0, 0, 0, 72, 190])
@@ -347,7 +359,7 @@ fn gen_stmt(ctx, s) {
         emitc(ctx, [72, 209, 248])
         if (ctx["target"] == "windows") {
             emitc(ctx, [72, 137, 193])
-            emitc(ctx, [255, 20, 37, 56, 48, 64, 0])
+            gen_win_call(ctx, 2)
         } else {
             emitc(ctx, [72, 137, 199, 184, 60, 0, 0, 0, 15, 5])
         }
@@ -485,7 +497,25 @@ fn emit_runtime(ctx) {
     gen_call_runtime(ctx, "__str_concat", 2)
     emitc(ctx, [201, 195])
 
-    gen_rt_fn(ctx, "__emit_str", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 72, 139, 80, 8, 72, 141, 112, 16, 72, 199, 199, 1, 0, 0, 0, 72, 199, 192, 1, 0, 0, 0, 15, 5, 106, 10, 72, 137, 230, 72, 199, 194, 1, 0, 0, 0, 72, 199, 192, 1, 0, 0, 0, 72, 199, 199, 1, 0, 0, 0, 15, 5, 72, 131, 196, 8, 72, 139, 69, 16, 201, 195])
+    if (ctx["target"] == "windows") {
+        gen_rt_fn(ctx, "__emit_str", [85, 72, 137, 229, 72, 131, 236, 64, 72, 139, 69, 16, 72, 131, 232, 1, 72, 137, 69, 248, 72, 199, 193, 245, 255, 255, 255])
+        gen_win_call(ctx, 0)
+        emitc(ctx, [72, 137, 193, 72, 139, 85, 248, 76, 139, 66, 8, 72, 131, 194, 16, 76, 141, 76, 36, 40, 72, 199, 68, 36, 32, 0, 0, 0, 0])
+        gen_win_call(ctx, 1)
+        emitc(ctx, [72, 139, 69, 16, 201, 195])
+    } else {
+        gen_rt_fn(ctx, "__emit_str", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 72, 139, 80, 8, 72, 141, 112, 16, 72, 199, 199, 1, 0, 0, 0, 72, 199, 192, 1, 0, 0, 0, 15, 5, 106, 10, 72, 137, 230, 72, 199, 194, 1, 0, 0, 0, 72, 199, 192, 1, 0, 0, 0, 72, 199, 199, 1, 0, 0, 0, 15, 5, 72, 131, 196, 8, 72, 139, 69, 16, 201, 195])
+    }
+
+    os_name = "linux"
+    if (ctx["target"] == "windows") { os_name = "windows" }
+    os_id = size(ctx["strings"])
+    ctx["strings"] = push(ctx["strings"], os_name)
+    gen_rt_fn(ctx, "os", [72, 184])
+    emitc(ctx, zeros(8))
+    p = size(ctx["code"]) - 8
+    ctx["fix"] = push(ctx["fix"], [p, "str", os_id])
+    emitc(ctx, [72, 131, 200, 1, 195])
 
     gen_rt_fn(ctx, "to_string", [85, 72, 137, 229, 72, 139, 69, 16, 72, 209, 248, 69, 49, 228, 72, 133, 192, 121, 9, 72, 247, 216, 65, 188, 1, 0, 0, 0, 72, 131, 236, 32, 72, 137, 230, 72, 49, 201, 72, 133, 192, 117, 8, 198, 6, 48, 72, 255, 193, 235, 27, 72, 49, 210, 72, 199, 195, 10, 0, 0, 0, 72, 247, 243, 128, 194, 48, 136, 20, 14, 72, 255, 193, 72, 133, 192, 117, 229, 73, 137, 205, 77, 137, 232, 77, 1, 224, 73, 141, 80, 17, 82])
     gen_call_runtime(ctx, "__alloc", 1)
@@ -517,31 +547,69 @@ fn emit_runtime(ctx) {
 
     gen_rt_fn(ctx, "kind", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 248, 1, 116, 30, 168, 1, 117, 7, 184, 2, 0, 0, 0, 201, 195, 72, 131, 232, 1, 72, 139, 0, 72, 209, 224, 72, 131, 192, 2, 72, 209, 224, 201, 195, 184, 12, 0, 0, 0, 201, 195])
 
-    gen_rt_fn(ctx, "slurp", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 72, 141, 120, 16, 72, 49, 246, 72, 49, 210, 72, 199, 192, 2, 0, 0, 0, 15, 5, 73, 137, 196, 72, 199, 192, 0, 0, 16, 0, 80])
-    gen_call_runtime(ctx, "__alloc", 1)
-    emitc(ctx, [73, 137, 197, 76, 137, 231, 76, 137, 238, 72, 199, 194, 0, 0, 16, 0, 72, 49, 192, 15, 5, 73, 137, 198, 76, 137, 231, 72, 199, 192, 3, 0, 0, 0, 15, 5, 76, 137, 242, 72, 131, 194, 17, 82])
-    gen_call_runtime(ctx, "__alloc", 1)
-    emitc(ctx, [72, 199, 0, 0, 0, 0, 0, 76, 137, 112, 8, 72, 141, 120, 16, 76, 137, 238, 76, 137, 241, 243, 164, 198, 7, 0, 72, 131, 200, 1, 201, 195])
+    if (ctx["target"] == "windows") {
+        gen_rt_fn(ctx, "slurp", [85, 72, 137, 229, 72, 131, 236, 96, 72, 139, 69, 16, 72, 131, 232, 1, 72, 141, 72, 16, 72, 186, 0, 0, 0, 128, 0, 0, 0, 0, 73, 199, 192, 1, 0, 0, 0, 77, 49, 201, 72, 199, 68, 36, 32, 3, 0, 0, 0, 72, 199, 68, 36, 40, 128, 0, 0, 0, 72, 199, 68, 36, 48, 0, 0, 0, 0])
+        gen_win_call(ctx, 4)
+        emitc(ctx, [72, 137, 69, 248, 72, 199, 192, 0, 0, 16, 0, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 131, 196, 8, 72, 137, 69, 240, 72, 139, 77, 248, 72, 139, 85, 240, 73, 199, 192, 0, 0, 16, 0, 76, 141, 76, 36, 56, 72, 199, 68, 36, 32, 0, 0, 0, 0])
+        gen_win_call(ctx, 5)
+        emitc(ctx, [72, 139, 68, 36, 56, 72, 137, 69, 232, 72, 139, 77, 248])
+        gen_win_call(ctx, 7)
+        emitc(ctx, [72, 139, 85, 232, 72, 131, 194, 17, 82])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 131, 196, 8, 72, 199, 0, 0, 0, 0, 0, 72, 139, 85, 232, 72, 137, 80, 8, 72, 141, 120, 16, 72, 139, 117, 240, 72, 137, 209, 243, 164, 198, 7, 0, 72, 131, 200, 1, 201, 195])
+    } else {
+        gen_rt_fn(ctx, "slurp", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 72, 141, 120, 16, 72, 49, 246, 72, 49, 210, 72, 199, 192, 2, 0, 0, 0, 15, 5, 73, 137, 196, 72, 199, 192, 0, 0, 16, 0, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [73, 137, 197, 76, 137, 231, 76, 137, 238, 72, 199, 194, 0, 0, 16, 0, 72, 49, 192, 15, 5, 73, 137, 198, 76, 137, 231, 72, 199, 192, 3, 0, 0, 0, 15, 5, 76, 137, 242, 72, 131, 194, 17, 82])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 199, 0, 0, 0, 0, 0, 76, 137, 112, 8, 72, 141, 120, 16, 76, 137, 238, 76, 137, 241, 243, 164, 198, 7, 0, 72, 131, 200, 1, 201, 195])
+    }
 
-    gen_rt_fn(ctx, "make_exe", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 73, 137, 196, 72, 139, 69, 24, 72, 131, 232, 1, 73, 137, 197, 77, 139, 117, 8, 76, 137, 240, 80])
-    gen_call_runtime(ctx, "__alloc", 1)
-    emitc(ctx, [73, 137, 199, 72, 49, 201, 76, 57, 241, 125, 17, 73, 139, 68, 205, 24, 72, 209, 248, 65, 136, 4, 15, 72, 255, 193, 235, 234, 73, 141, 124, 36, 16, 72, 199, 198, 65, 2, 0, 0, 72, 199, 194, 237, 1, 0, 0, 72, 199, 192, 2, 0, 0, 0, 15, 5, 73, 137, 196, 76, 137, 231, 76, 137, 254, 76, 137, 242, 72, 199, 192, 1, 0, 0, 0, 15, 5, 76, 137, 231, 72, 199, 192, 3, 0, 0, 0, 15, 5, 72, 199, 192, 1, 0, 0, 0, 201, 195])
+    if (ctx["target"] == "windows") {
+        gen_rt_fn(ctx, "make_exe", [85, 72, 137, 229, 72, 131, 236, 96, 72, 139, 69, 16, 72, 131, 232, 1, 72, 137, 69, 248, 72, 139, 69, 24, 72, 131, 232, 1, 72, 137, 69, 240, 72, 139, 72, 8, 72, 137, 77, 232, 72, 137, 200, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 131, 196, 8, 72, 137, 69, 224, 72, 49, 201, 72, 59, 77, 232, 125, 24, 72, 139, 69, 240, 72, 139, 68, 200, 24, 72, 209, 248, 72, 139, 85, 224, 136, 4, 10, 72, 255, 193, 235, 226, 72, 139, 69, 248, 72, 141, 72, 16, 72, 199, 194, 0, 0, 0, 64, 77, 49, 192, 77, 49, 201, 72, 199, 68, 36, 32, 2, 0, 0, 0, 72, 199, 68, 36, 40, 128, 0, 0, 0, 72, 199, 68, 36, 48, 0, 0, 0, 0])
+        gen_win_call(ctx, 4)
+        emitc(ctx, [72, 137, 69, 248, 72, 137, 193, 72, 139, 85, 224, 76, 139, 69, 232, 76, 141, 76, 36, 56, 72, 199, 68, 36, 32, 0, 0, 0, 0])
+        gen_win_call(ctx, 6)
+        emitc(ctx, [72, 139, 77, 248])
+        gen_win_call(ctx, 7)
+        emitc(ctx, [72, 199, 192, 1, 0, 0, 0, 201, 195])
+    } else {
+        gen_rt_fn(ctx, "make_exe", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 73, 137, 196, 72, 139, 69, 24, 72, 131, 232, 1, 73, 137, 197, 77, 139, 117, 8, 76, 137, 240, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [73, 137, 199, 72, 49, 201, 76, 57, 241, 125, 17, 73, 139, 68, 205, 24, 72, 209, 248, 65, 136, 4, 15, 72, 255, 193, 235, 234, 73, 141, 124, 36, 16, 72, 199, 198, 65, 2, 0, 0, 72, 199, 194, 237, 1, 0, 0, 72, 199, 192, 2, 0, 0, 0, 15, 5, 73, 137, 196, 76, 137, 231, 76, 137, 254, 76, 137, 242, 72, 199, 192, 1, 0, 0, 0, 15, 5, 76, 137, 231, 72, 199, 192, 3, 0, 0, 0, 15, 5, 72, 199, 192, 1, 0, 0, 0, 201, 195])
+    }
 
-    gen_rt_fn(ctx, "args", [85, 72, 137, 229])
-    emitc(ctx, [72, 187])
-    emitc(ctx, zeros(8))
-    p = size(ctx["code"]) - 8
-    ctx["fix"] = push(ctx["fix"], [p, "argc", 0])
-    emitc(ctx, [72, 139, 3, 73, 137, 196])
-    emitc(ctx, [72, 187])
-    emitc(ctx, zeros(8))
-    p = size(ctx["code"]) - 8
-    ctx["fix"] = push(ctx["fix"], [p, "argv", 0])
-    emitc(ctx, [72, 139, 3, 73, 137, 197, 76, 137, 224, 72, 193, 224, 3, 72, 131, 192, 24, 80])
-    gen_call_runtime(ctx, "__alloc", 1)
-    emitc(ctx, [72, 199, 0, 1, 0, 0, 0, 76, 137, 96, 8, 76, 137, 96, 16, 73, 137, 198, 77, 49, 255, 77, 57, 231, 125, 81, 75, 139, 68, 253, 0, 72, 137, 198, 72, 49, 210, 128, 60, 22, 0, 116, 5, 72, 255, 194, 235, 245, 72, 137, 211, 72, 141, 67, 17, 80])
-    gen_call_runtime(ctx, "__alloc", 1)
-    emitc(ctx, [72, 199, 0, 0, 0, 0, 0, 72, 137, 88, 8, 72, 141, 120, 16, 75, 139, 116, 253, 0, 72, 137, 217, 243, 164, 198, 7, 0, 72, 131, 200, 1, 75, 137, 68, 254, 24, 73, 255, 199, 235, 170, 76, 137, 240, 72, 131, 200, 1, 201, 195])
+    if (ctx["target"] == "windows") {
+        gen_rt_fn(ctx, "args", [85, 72, 137, 229, 72, 131, 236, 96])
+        gen_win_call(ctx, 8)
+        emitc(ctx, [72, 137, 69, 248, 72, 137, 69, 240, 72, 137, 69, 232, 72, 49, 192, 80])
+        gen_call_runtime(ctx, "__make_array", 1)
+        emitc(ctx, [72, 131, 196, 8, 72, 137, 69, 224, 72, 139, 93, 240, 138, 19, 132, 210, 116, 14, 128, 250, 32, 116, 9, 72, 255, 195, 72, 137, 93, 240, 235, 232, 72, 139, 93, 240, 72, 139, 77, 232, 72, 41, 203, 72, 137, 93, 216, 72, 133, 219, 116, 74, 72, 137, 218, 72, 131, 194, 17, 82])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 131, 196, 8, 72, 199, 0, 0, 0, 0, 0, 72, 139, 93, 216, 72, 137, 88, 8, 72, 141, 120, 16, 72, 139, 117, 232, 72, 137, 217, 243, 164, 198, 7, 0, 72, 131, 200, 1, 72, 137, 194, 72, 139, 77, 224, 82, 81])
+        gen_call_runtime(ctx, "push", 2)
+        emitc(ctx, [72, 131, 196, 16, 72, 137, 69, 224, 72, 139, 93, 240, 138, 19, 132, 210, 116, 16, 72, 255, 195, 72, 137, 93, 240, 72, 137, 93, 232, 233, 112, 255, 255, 255, 72, 139, 69, 224, 201, 195])
+    } else {
+        gen_rt_fn(ctx, "args", [85, 72, 137, 229])
+        emitc(ctx, [72, 187])
+        emitc(ctx, zeros(8))
+        p = size(ctx["code"]) - 8
+        ctx["fix"] = push(ctx["fix"], [p, "argc", 0])
+        emitc(ctx, [72, 139, 3, 73, 137, 196])
+        emitc(ctx, [72, 187])
+        emitc(ctx, zeros(8))
+        p = size(ctx["code"]) - 8
+        ctx["fix"] = push(ctx["fix"], [p, "argv", 0])
+        emitc(ctx, [72, 139, 3, 73, 137, 197, 76, 137, 224, 72, 193, 224, 3, 72, 131, 192, 24, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 199, 0, 1, 0, 0, 0, 76, 137, 96, 8, 76, 137, 96, 16, 73, 137, 198, 77, 49, 255, 77, 57, 231, 125, 81, 75, 139, 68, 253, 0, 72, 137, 198, 72, 49, 210, 128, 60, 22, 0, 116, 5, 72, 255, 194, 235, 245, 72, 137, 211, 72, 141, 67, 17, 80])
+        gen_call_runtime(ctx, "__alloc", 1)
+        emitc(ctx, [72, 199, 0, 0, 0, 0, 0, 72, 137, 88, 8, 72, 141, 120, 16, 75, 139, 116, 253, 0, 72, 137, 217, 243, 164, 198, 7, 0, 72, 131, 200, 1, 75, 137, 68, 254, 24, 73, 255, 199, 235, 170, 76, 137, 240, 72, 131, 200, 1, 201, 195])
+    }
 
     gen_rt_fn(ctx, "__obj_new", [85, 72, 137, 229, 72, 199, 192, 16, 16, 0, 0, 80])
     gen_call_runtime(ctx, "__alloc", 1)
@@ -566,24 +634,45 @@ fn gen_program(ctx, ast) {
     ctx["fix"] = push(ctx["fix"], [p, "argv", 0])
     emitc(ctx, zeros(8))
 
-    emitc(ctx, [184, 9, 0, 0, 0, 72, 49, 255, 72, 190])
-    emitc(ctx, to_le8(1073741824))
-    emitc(ctx, [72, 186])
-    emitc(ctx, to_le8(3))
-    emitc(ctx, [73, 199, 194, 34, 0, 0, 0])
-    emitc(ctx, [73, 199, 192, 255, 255, 255, 255])
-    emitc(ctx, [77, 49, 201])
-    emitc(ctx, [15, 5])
-    emitc(ctx, [72, 163])
-    p = size(ctx["code"])
-    ctx["fix"] = push(ctx["fix"], [p, "heap", 0])
-    emitc(ctx, zeros(8))
-    emitc(ctx, [72, 5])
-    emitc(ctx, to_le4(1073741824))
-    emitc(ctx, [72, 163])
-    p = size(ctx["code"])
-    ctx["fix"] = push(ctx["fix"], [p, "heap_end", 0])
-    emitc(ctx, zeros(8))
+    if (ctx["target"] == "windows") {
+        emitc(ctx, [72, 131, 236, 40])
+        emitc(ctx, [72, 49, 201])
+        emitc(ctx, [72, 186])
+        emitc(ctx, to_le8(1073741824))
+        emitc(ctx, [73, 199, 192, 0, 48, 0, 0])
+        emitc(ctx, [73, 199, 193, 4, 0, 0, 0])
+        gen_win_call(ctx, 3)
+        emitc(ctx, [72, 131, 196, 40])
+        emitc(ctx, [72, 163])
+        p = size(ctx["code"])
+        ctx["fix"] = push(ctx["fix"], [p, "heap", 0])
+        emitc(ctx, zeros(8))
+        emitc(ctx, [72, 5])
+        emitc(ctx, to_le4(1073741824))
+        emitc(ctx, [72, 163])
+        p = size(ctx["code"])
+        ctx["fix"] = push(ctx["fix"], [p, "heap_end", 0])
+        emitc(ctx, zeros(8))
+    } else {
+        emitc(ctx, [184, 9, 0, 0, 0, 72, 49, 255, 72, 190])
+        emitc(ctx, to_le8(1073741824))
+        emitc(ctx, [72, 186])
+        emitc(ctx, to_le8(3))
+        emitc(ctx, [73, 199, 194, 34, 0, 0, 0])
+        emitc(ctx, [73, 199, 192, 255, 255, 255, 255])
+        emitc(ctx, [77, 49, 201])
+        emitc(ctx, [15, 5])
+        emitc(ctx, [72, 163])
+        p = size(ctx["code"])
+        ctx["fix"] = push(ctx["fix"], [p, "heap", 0])
+        emitc(ctx, zeros(8))
+        emitc(ctx, [72, 5])
+        emitc(ctx, to_le4(1073741824))
+        emitc(ctx, [72, 163])
+        p = size(ctx["code"])
+        ctx["fix"] = push(ctx["fix"], [p, "heap_end", 0])
+        emitc(ctx, zeros(8))
+    }
 
     main_l = new_label(ctx)
     jmp(ctx, main_l)
@@ -604,7 +693,8 @@ fn gen_program(ctx, ast) {
         i = i + 1
     }
     if (ctx["target"] == "windows") {
-        emitc(ctx, [72, 49, 201, 255, 20, 37, 56, 48, 64, 0])
+        emitc(ctx, [72, 49, 201])
+        gen_win_call(ctx, 2)
     } else {
         emitc(ctx, [184, 60, 0, 0, 0, 72, 49, 255, 15, 5])
     }
@@ -657,6 +747,11 @@ fn patch_fixups(ctx) {
                 rel = tpos - (pos + 4)
                 ctx["code"] = patch_bytes(ctx["code"], pos, to_le4(rel))
             }
+        }
+        if (kind == "win") {
+            iat = 4194304 + ctx["idata_rva"] + 40 + id * 8
+            rel = iat - (4198404 + pos)
+            ctx["code"] = patch_bytes(ctx["code"], pos, to_le4(rel))
         }
         i = i + 1
     }
@@ -723,10 +818,13 @@ fn compile_windows(ast) {
     while (size(ctx["code"]) % 8 != 0) {
         emitc(ctx, [144])
     }
-    ctx["base"] = 4202496
     data = build_data(ctx)
+    data_rva = 4096 + align_up(size(ctx["code"]), 4096)
+    idata_rva = data_rva + align_up(size(data), 4096)
+    ctx["base"] = 4194304 + data_rva
+    ctx["idata_rva"] = idata_rva
     patch_fixups(ctx)
-    give make_pe_full(ctx["code"], data)
+    give make_pe_full(ctx["code"], data, 4096, data_rva, idata_rva)
 }
 
 fn compile(ast, target) {
@@ -771,13 +869,29 @@ fn resolve_imports(ast, seen) {
     give join_arrays(all_fns, main_stmts)
 }
 
-fn compile_auto(ast) {
+fn compile_target(ast, target) {
     resolved = resolve_imports(ast, {})
     ctx = new_ctx()
-    ctx["target"] = "linux"
+    if (target == "windows" || target == "win32" || target == "win" || target == "msvc") {
+        ctx["target"] = "windows"
+    } else {
+        ctx["target"] = "linux"
+    }
     gen_program(ctx, resolved)
     while (size(ctx["code"]) % 8 != 0) {
         emitc(ctx, [144])
+    }
+    if (ctx["target"] == "windows") {
+        data = build_data(ctx)
+        data_rva = 4096 + align_up(size(ctx["code"]), 4096)
+        idata_rva = data_rva + align_up(size(data), 4096)
+        ctx["base"] = 4194304 + data_rva
+        ctx["idata_rva"] = idata_rva
+        patch_fixups(ctx)
+        if (size(ctx["errors"]) > 0) {
+            give ["error", ctx["errors"]]
+        }
+        give ["ok", make_pe_full(ctx["code"], data, 4096, data_rva, idata_rva)]
     }
     ctx["base"] = 4194304 + 120 + size(ctx["code"])
     data = build_data(ctx)
@@ -786,6 +900,10 @@ fn compile_auto(ast) {
         give ["error", ctx["errors"]]
     }
     give ["ok", make_elf_full(ctx["code"], data)]
+}
+
+fn compile_auto(ast) {
+    give compile_target(ast, os())
 }
 
 fn make_elf_full(code, data) {
@@ -810,21 +928,39 @@ fn make_elf_full(code, data) {
     give result
 }
 
-fn build_idata() {
+fn build_idata(base) {
     h0 = join_arrays([0, 0], str_bytes("GetStdHandle"))
     h0 = join_arrays(h0, [0])
     h1 = join_arrays([0, 0], str_bytes("WriteConsoleA"))
     h1 = join_arrays(h1, [0])
     h2 = join_arrays([0, 0], str_bytes("ExitProcess"))
     h2 = join_arrays(h2, [0])
+    h3 = join_arrays([0, 0], str_bytes("VirtualAlloc"))
+    h3 = join_arrays(h3, [0])
+    h4 = join_arrays([0, 0], str_bytes("CreateFileA"))
+    h4 = join_arrays(h4, [0])
+    h5 = join_arrays([0, 0], str_bytes("ReadFile"))
+    h5 = join_arrays(h5, [0])
+    h6 = join_arrays([0, 0], str_bytes("WriteFile"))
+    h6 = join_arrays(h6, [0])
+    h7 = join_arrays([0, 0], str_bytes("CloseHandle"))
+    h7 = join_arrays(h7, [0])
+    h8 = join_arrays([0, 0], str_bytes("GetCommandLineA"))
+    h8 = join_arrays(h8, [0])
     dll = join_arrays(str_bytes("kernel32.dll"), [0])
 
-    base = 12288
     thunk = base + 40
-    h0r = thunk + 32
-    h1r = h0r + size(h0)
-    h2r = h1r + size(h1)
-    dllr = h2r + size(h2)
+    off = thunk + 80
+    h0r = off; off = off + size(h0)
+    h1r = off; off = off + size(h1)
+    h2r = off; off = off + size(h2)
+    h3r = off; off = off + size(h3)
+    h4r = off; off = off + size(h4)
+    h5r = off; off = off + size(h5)
+    h6r = off; off = off + size(h6)
+    h7r = off; off = off + size(h7)
+    h8r = off; off = off + size(h8)
+    dllr = off
 
     idata = to_le4(thunk)
     idata = join_arrays(idata, to_le4(0))
@@ -836,19 +972,31 @@ fn build_idata() {
     idata = join_arrays(idata, to_le8(h0r))
     idata = join_arrays(idata, to_le8(h1r))
     idata = join_arrays(idata, to_le8(h2r))
+    idata = join_arrays(idata, to_le8(h3r))
+    idata = join_arrays(idata, to_le8(h4r))
+    idata = join_arrays(idata, to_le8(h5r))
+    idata = join_arrays(idata, to_le8(h6r))
+    idata = join_arrays(idata, to_le8(h7r))
+    idata = join_arrays(idata, to_le8(h8r))
     idata = join_arrays(idata, to_le8(0))
 
     idata = join_arrays(idata, h0)
     idata = join_arrays(idata, h1)
     idata = join_arrays(idata, h2)
+    idata = join_arrays(idata, h3)
+    idata = join_arrays(idata, h4)
+    idata = join_arrays(idata, h5)
+    idata = join_arrays(idata, h6)
+    idata = join_arrays(idata, h7)
+    idata = join_arrays(idata, h8)
     idata = join_arrays(idata, dll)
     give idata
 }
 
-fn make_pe_full(code, data) {
+fn make_pe_full(code, data, text_rva, data_rva, idata_rva) {
     code_size = size(code)
     data_size = size(data)
-    idata = build_idata()
+    idata = build_idata(idata_rva)
     idata_size = size(idata)
 
     raw_text = code_size
@@ -894,7 +1042,7 @@ fn make_pe_full(code, data) {
     opt = join_arrays(opt, to_le2(6))
     opt = join_arrays(opt, to_le2(0))
     opt = join_arrays(opt, to_le4(0))
-    opt = join_arrays(opt, to_le4(16384))
+    opt = join_arrays(opt, to_le4(idata_rva + align_up(idata_size, 4096)))
     opt = join_arrays(opt, to_le4(512))
     opt = join_arrays(opt, to_le4(0))
     opt = join_arrays(opt, to_le2(3))
@@ -907,13 +1055,13 @@ fn make_pe_full(code, data) {
     opt = join_arrays(opt, to_le4(16))
     opt = join_arrays(opt, to_le4(0))
     opt = join_arrays(opt, to_le4(0))
-    opt = join_arrays(opt, to_le4(12288))
+    opt = join_arrays(opt, to_le4(idata_rva))
     opt = join_arrays(opt, to_le4(40))
     opt = join_arrays(opt, zeros(112))
 
     s1 = [46, 116, 101, 120, 116, 0, 0, 0]
     s1 = join_arrays(s1, to_le4(code_size))
-    s1 = join_arrays(s1, to_le4(4096))
+    s1 = join_arrays(s1, to_le4(text_rva))
     s1 = join_arrays(s1, to_le4(raw_text))
     s1 = join_arrays(s1, to_le4(text_off))
     s1 = join_arrays(s1, zeros(12))
@@ -921,7 +1069,7 @@ fn make_pe_full(code, data) {
 
     s2 = [46, 100, 97, 116, 97, 0, 0, 0]
     s2 = join_arrays(s2, to_le4(data_size))
-    s2 = join_arrays(s2, to_le4(8192))
+    s2 = join_arrays(s2, to_le4(data_rva))
     s2 = join_arrays(s2, to_le4(raw_data))
     s2 = join_arrays(s2, to_le4(data_off))
     s2 = join_arrays(s2, zeros(12))
@@ -929,7 +1077,7 @@ fn make_pe_full(code, data) {
 
     s3 = [46, 105, 100, 97, 116, 97, 0, 0]
     s3 = join_arrays(s3, to_le4(idata_size))
-    s3 = join_arrays(s3, to_le4(12288))
+    s3 = join_arrays(s3, to_le4(idata_rva))
     s3 = join_arrays(s3, to_le4(raw_idata))
     s3 = join_arrays(s3, to_le4(idata_off))
     s3 = join_arrays(s3, zeros(12))

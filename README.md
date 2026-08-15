@@ -1,24 +1,27 @@
 # Dark
 
-A self-hosting programming language and compiler for Linux x86_64.
+A self-hosting programming language and compiler for Linux x86_64 and Windows.
 
 Dark is a minimal dynamically-typed language: integers, strings, arrays, objects,
 functions and modules. Its defining feature is **self-hosting** — the compiler is
-written in Dark itself and compiles Dark source to native ELF binaries, with no
-external toolchain.
+written in Dark itself and compiles Dark source to native ELF (Linux) or PE
+(Windows) binaries, with no external toolchain.
 
 ## Quick start
 
 ```sh
-# compile a .dark program to a native executable
+# Linux — compile a .dark program to a native executable
 ./darkc examples/fib.dark /tmp/fib
 chmod +x /tmp/fib && /tmp/fib      # fib(10) = 55
 
-# rebuild the compiler from its own source
+# Windows — darkc.exe is a native PE; it compiles to .exe by default
+./darkc.exe examples/fib.dark fib.exe
+
+# rebuild both compilers from their own source
 ./build.sh
 
-# flags: -o <out>, -v (verbose)
-./darkc examples/fib.dark -o /tmp/fib -v
+# flags: -o <out>, -v (verbose), --target linux|windows
+./darkc examples/fib.dark -o /tmp/fib --target linux -v
 ```
 
 ## Example
@@ -53,13 +56,13 @@ emit("gcd(12, 18) = " + to_string(gcd(12, 18)))
 The compiler has two parts, both written in Dark:
 
 - `std/parser.dark` — lexer + recursive-descent parser (source → AST)
-- `std/codegen.dark` — code generator (AST → native x86_64 ELF)
+- `std/codegen.dark` — code generator (AST → native x86_64 ELF / PE)
 
 `examples/darkc.dark` is the compiler driver: it reads the source, parses it,
 resolves `extract` modules, compiles to native and reports errors.
 
-The bootstrap is a single prebuilt binary (`darkc`). `./build.sh` recompiles it
-from source, and the result is byte-identical — a fixed point.
+The bootstrap is two prebuilt binaries (`darkc`, `darkc.exe`). `./build.sh`
+recompiles both from source, and the result is byte-identical — a fixed point.
 
 ## Errors
 
@@ -77,7 +80,8 @@ error: unknown flag --bogus             # exit 2
 ## Structure
 
 ```
-darkc                  — prebuilt bootstrap compiler
+darkc                  — prebuilt Linux bootstrap compiler
+darkc.exe              — prebuilt Windows bootstrap compiler
 build.sh               — self-hosting rebuild
 std/                   — standard library (Dark)
   parser.dark  codegen.dark  pe.dark  math.dark  string.dark  array.dark  ...

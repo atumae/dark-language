@@ -1,7 +1,8 @@
 #!/bin/sh
-# Self-hosting bootstrap: rebuild darkc from its own Dark source.
+# Self-hosting bootstrap: rebuild darkc and darkc.exe from their own Dark source.
 set -e
 ./darkc examples/darkc.dark ./darkc.new
 chmod +x ./darkc.new
 mv ./darkc.new ./darkc
-echo "darkc rebuilt"
+./darkc examples/darkc.dark ./darkc.exe --target windows
+echo "darkc and darkc.exe rebuilt"
