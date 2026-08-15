@@ -122,3 +122,144 @@ fn starts_with_num(s, sub) {
 fn ends_with_num(s, sub) {
     give ends_with(s, sub)
 }
+
+fn is_space(c) {
+    give c == " " || c == "\t" || c == "\n" || c == "\r"
+}
+
+fn trim(s) {
+    start = 0
+    end = size(s)
+    while (start < end && is_space(char_at(s, start))) {
+        start = start + 1
+    }
+    while (end > start && is_space(char_at(s, end - 1))) {
+        end = end - 1
+    }
+    give substring(s, start, end)
+}
+
+fn trim_left(s) {
+    start = 0
+    while (start < size(s) && is_space(char_at(s, start))) {
+        start = start + 1
+    }
+    give substring(s, start, size(s))
+}
+
+fn trim_right(s) {
+    end = size(s)
+    while (end > 0 && is_space(char_at(s, end - 1))) {
+        end = end - 1
+    }
+    give substring(s, 0, end)
+}
+
+fn starts_with(s, sub) {
+    if (size(sub) > size(s)) { give 0 }
+    give substring(s, 0, size(sub)) == sub
+}
+
+fn ends_with(s, sub) {
+    n = size(s)
+    m = size(sub)
+    if (m > n) { give 0 }
+    give substring(s, n - m, n) == sub
+}
+
+fn contains(s, sub) {
+    give index_of(s, sub) != 0 - 1
+}
+
+fn index_of(s, sub) {
+    n = size(s)
+    m = size(sub)
+    if (m == 0) { give 0 }
+    i = 0
+    while (i + m <= n) {
+        if (substring(s, i, i + m) == sub) { give i }
+        i = i + 1
+    }
+    give 0 - 1
+}
+
+fn last_index_of(s, sub) {
+    n = size(s)
+    m = size(sub)
+    i = n - m
+    while (i >= 0) {
+        if (substring(s, i, i + m) == sub) { give i }
+        i = i - 1
+    }
+    give 0 - 1
+}
+
+fn split(s, sep) {
+    r = []
+    if (size(sep) == 0) {
+        i = 0
+        while (i < size(s)) {
+            r = push(r, char_at(s, i))
+            i = i + 1
+        }
+        give r
+    }
+    start = 0
+    i = 0
+    n = size(s)
+    m = size(sep)
+    while (i + m <= n) {
+        if (substring(s, i, i + m) == sep) {
+            r = push(r, substring(s, start, i))
+            i = i + m
+            start = i
+        } else {
+            i = i + 1
+        }
+    }
+    r = push(r, substring(s, start, n))
+    give r
+}
+
+fn join(arr, sep) {
+    r = ""
+    i = 0
+    while (i < size(arr)) {
+        if (i > 0) { r = r + sep }
+        r = r + to_string(arr[i])
+        i = i + 1
+    }
+    give r
+}
+
+fn replace(s, old, new) {
+    if (old == "") { give s }
+    r = ""
+    i = 0
+    n = size(s)
+    m = size(old)
+    while (i < n) {
+        if (i + m <= n && substring(s, i, i + m) == old) {
+            r = r + new
+            i = i + m
+        } else {
+            r = r + char_at(s, i)
+            i = i + 1
+        }
+    }
+    give r
+}
+
+fn replace_all(s, old, new) {
+    give replace(s, old, new)
+}
+
+fn split_chars(s) {
+    r = []
+    i = 0
+    while (i < size(s)) {
+        r = push(r, char_at(s, i))
+        i = i + 1
+    }
+    give r
+}

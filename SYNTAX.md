@@ -17,7 +17,7 @@ Dark — минималистичный динамически-типизиро�
 | число | `42`, `-7`, `0x1F` | целое (64-bit), hex-литерал `0x…` |
 | строка | `"hello"`, `"a\nb"` | экранирование: `\n \t \" \\` |
 | массив | `[1, 2, 3]` | гетерогенный |
-| объект | `{}` | словарь; поля через `obj["key"]` |
+| объект | `{"a": 1, "b": 2}` | словарь; поля через `obj["key"]` |
 | null | `null` | отсутствие значения |
 
 ## Переменные и присваивание
@@ -63,6 +63,14 @@ while (i < 10) {
     if (i == 8) { break }
 }
 
+for (x of [1, 2, 3]) {     // цикл по элементам
+    emit(x)
+}
+
+for (i, x of ["a", "b"]) { // цикл с индексом
+    emit(to_string(i) + x)
+}
+
 exit_code(0)                // завершить процесс с кодом
 ```
 
@@ -77,6 +85,15 @@ fn factorial(n) {
     if (n <= 1) { give 1 }
     give n * factorial(n - 1)    // рекурсия
 }
+```
+
+Функции — значения первого класса: их можно передавать в другие функции.
+
+```dark
+extract array
+
+fn double(x) { give x * 2 }
+emit(join(map([1, 2, 3], double), ","))   // 2,4,6
 ```
 
 ## Модули
@@ -104,8 +121,10 @@ error: undefined function: gcd
 | `char_at(s, i)` | символ строки как строка |
 | `ord(s)` | код первого символа |
 | `substring(s, a, b)` | подстрока `[a, b)` |
-| `kind(v)` | 1 — число, 2 — строка, 4 — массив |
+| `kind(v)` | 1 — число, 2 — строка, 4 — массив, 6 — объект/null |
 | `push(arr, x)` | добавить элемент в массив |
+| `keys(obj)` | массив ключей объекта |
+| `values(obj)` | массив значений объекта |
 | `slurp(path)` | файл → строка |
 | `make_exe(path, bytes)` | записать байтовый массив в файл |
 | `args()` | массив аргументов командной строки |
@@ -125,9 +144,10 @@ error: undefined function: gcd
 | Модуль | Назначение |
 |---|---|
 | `math` | gcd, lcm, is_prime, fibonacci, sum, product, mean, median, clamp, sign, sqrt_int, fact |
-| `string` | upper, lower, capitalize, title, reverse_str, repeat_str, count, pad_left, pad_right |
+| `string` | upper, lower, split, join, trim, replace, contains, index_of, starts_with, ends_with, … |
 | `array` | range, map, filter, reduce, zip, flatten, unique, chunk, take, drop, sum, min, max |
 | `map` | has_key, get_or, size_map, merge, to_pairs |
+| `json` | json_stringify, json_parse (JSON → объекты и обратно) |
 | `fs` | read_text, write_text, read_lines, ls, mk, rm, is_file, is_dir, copy, move |
 | `io` | read_file, write_file, read_lines, exists, append_file |
 | `os` | os_name, shell, argv, getenv, setenv, exit, cwd, hostname, uname, cpu_count |

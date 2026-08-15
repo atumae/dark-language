@@ -123,7 +123,7 @@ fn tokenize(src) {
             i = i + 2
             skip
         }
-        if (ch == "+" || ch == "-" || ch == "*" || ch == "/" || ch == "%" || ch == "=" || ch == ">" || ch == "<" || ch == "!" || ch == "&" || ch == "|" || ch == "^" || ch == "~" || ch == "(" || ch == ")" || ch == "{" || ch == "}" || ch == "[" || ch == "]" || ch == "," || ch == ".") {
+        if (ch == "+" || ch == "-" || ch == "*" || ch == "/" || ch == "%" || ch == "=" || ch == ">" || ch == "<" || ch == "!" || ch == "&" || ch == "|" || ch == "^" || ch == "~" || ch == "(" || ch == ")" || ch == "{" || ch == "}" || ch == "[" || ch == "]" || ch == "," || ch == "." || ch == ":") {
             tokens = push(tokens, ch)
             i = i + 1
             skip
@@ -198,6 +198,25 @@ fn parse_stmt(tokens, pos) {
         pos[0] = pos[0] + 1
         body = parse_block(tokens, pos)
         give ["while", cond, body]
+    }
+    if (t == "for") {
+        pos[0] = pos[0] + 1
+        pos[0] = pos[0] + 1
+        first = tokens[pos[0]]
+        pos[0] = pos[0] + 1
+        indexvar = null
+        varname = first
+        if (tokens[pos[0]] == ",") {
+            pos[0] = pos[0] + 1
+            indexvar = first
+            varname = tokens[pos[0]]
+            pos[0] = pos[0] + 1
+        }
+        pos[0] = pos[0] + 1
+        iterexpr = parse_expr(tokens, pos)
+        pos[0] = pos[0] + 1
+        body = parse_block(tokens, pos)
+        give ["for", varname, indexvar, iterexpr, body]
     }
     if (t == "skip") {
         pos[0] = pos[0] + 1
@@ -395,8 +414,20 @@ fn parse_primary(tokens, pos) {
         give ["arr", items]
     }
     if (t == "{") {
+        pairs = []
+        if (tokens[pos[0]] != "}") {
+            while (pos[0] < size(tokens) && tokens[pos[0]] != "}") {
+                key = parse_expr(tokens, pos)
+                pos[0] = pos[0] + 1
+                val = parse_expr(tokens, pos)
+                pairs = push(pairs, [key, val])
+                if (tokens[pos[0]] == ",") {
+                    pos[0] = pos[0] + 1
+                }
+            }
+        }
         pos[0] = pos[0] + 1
-        give ["obj"]
+        give ["dict", pairs]
     }
     give ["var", t]
 }

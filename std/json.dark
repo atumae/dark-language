@@ -1,0 +1,154 @@
+
+// JSON library: stringify + parse.
+// Uses dict literals, for-loops, keys(), and string builtins.
+extract string
+
+fn json_stringify(v) {
+    give json_enc(v)
+}
+
+fn json_enc(v) {
+    if (v == null) { give "null" }
+    k = kind(v)
+    if (k == 1) { give to_string(v) }
+    if (k == 2) { give json_quote(v) }
+    if (k == 4) { give json_enc_arr(v) }
+    give json_enc_obj(v)
+}
+
+fn json_quote(s) {
+    r = "\""
+    i = 0
+    while (i < size(s)) {
+        c = char_at(s, i)
+        if (c == "\"") { r = r + "\\\"" }
+        if (c == "\\") { r = r + "\\\\" }
+        if (c == "\n") { r = r + "\\n" }
+        if (c == "\t") { r = r + "\\t" }
+        if (c == "\r") { r = r + "\\r" }
+        if (c != "\"" && c != "\\" && c != "\n" && c != "\t" && c != "\r") { r = r + c }
+        i = i + 1
+    }
+    give r + "\""
+}
+
+fn json_enc_arr(a) {
+    parts = []
+    for (x of a) {
+        parts = push(parts, json_enc(x))
+    }
+    give "[" + join(parts, ",") + "]"
+}
+
+fn json_enc_obj(o) {
+    parts = []
+    for (k of keys(o)) {
+        parts = push(parts, json_quote(k) + ":" + json_enc(o[k]))
+    }
+    give "{" + join(parts, ",") + "}"
+}
+
+// --- parsing ---
+
+fn json_parse(s) {
+    pos = [0]
+    give json_val(s, pos)
+}
+
+fn json_skip_ws(s, pos) {
+    while (pos[0] < size(s) && (char_at(s, pos[0]) == " " || char_at(s, pos[0]) == "\t" || char_at(s, pos[0]) == "\n" || char_at(s, pos[0]) == "\r")) {
+        pos[0] = pos[0] + 1
+    }
+    give 0
+}
+
+fn json_val(s, pos) {
+    json_skip_ws(s, pos)
+    c = char_at(s, pos[0])
+    if (c == "{") { give json_obj(s, pos) }
+    if (c == "[") { give json_arr(s, pos) }
+    if (c == "\"") { give json_str(s, pos) }
+    if (c == "t") { pos[0] = pos[0] + 4; give 1 }
+    if (c == "f") { pos[0] = pos[0] + 5; give 0 }
+    if (c == "n") { pos[0] = pos[0] + 4; give null }
+    give json_num(s, pos)
+}
+
+fn json_str(s, pos) {
+    pos[0] = pos[0] + 1
+    r = ""
+    while (pos[0] < size(s) && char_at(s, pos[0]) != "\"") {
+        c = char_at(s, pos[0])
+        if (c == "\\") {
+            pos[0] = pos[0] + 1
+            e = char_at(s, pos[0])
+            if (e == "n") { r = r + "\n" }
+            if (e == "t") { r = r + "\t" }
+            if (e == "r") { r = r + "\r" }
+            if (e == "\"") { r = r + "\"" }
+            if (e == "\\") { r = r + "\\" }
+            if (e != "n" && e != "t" && e != "r" && e != "\"" && e != "\\") { r = r + e }
+        } else {
+            r = r + c
+        }
+        pos[0] = pos[0] + 1
+    }
+    pos[0] = pos[0] + 1
+    give r
+}
+
+fn json_num(s, pos) {
+    start = pos[0]
+    if (char_at(s, pos[0]) == "-") { pos[0] = pos[0] + 1 }
+    while (pos[0] < size(s) && (char_at(s, pos[0]) >= "0" && char_at(s, pos[0]) <= "9")) {
+        pos[0] = pos[0] + 1
+    }
+    give to_int(substring(s, start, pos[0]))
+}
+
+fn json_arr(s, pos) {
+    pos[0] = pos[0] + 1
+    r = []
+    json_skip_ws(s, pos)
+    if (char_at(s, pos[0]) == "]") {
+        pos[0] = pos[0] + 1
+        give r
+    }
+    while (1) {
+        json_skip_ws(s, pos)
+        r = push(r, json_val(s, pos))
+        json_skip_ws(s, pos)
+        if (char_at(s, pos[0]) == ",") {
+            pos[0] = pos[0] + 1
+            skip
+        }
+        break
+    }
+    pos[0] = pos[0] + 1
+    give r
+}
+
+fn json_obj(s, pos) {
+    pos[0] = pos[0] + 1
+    r = {}
+    json_skip_ws(s, pos)
+    if (char_at(s, pos[0]) == "}") {
+        pos[0] = pos[0] + 1
+        give r
+    }
+    while (1) {
+        json_skip_ws(s, pos)
+        key = json_str(s, pos)
+        json_skip_ws(s, pos)
+        pos[0] = pos[0] + 1
+        r[key] = json_val(s, pos)
+        json_skip_ws(s, pos)
+        if (char_at(s, pos[0]) == ",") {
+            pos[0] = pos[0] + 1
+            skip
+        }
+        break
+    }
+    pos[0] = pos[0] + 1
+    give r
+}

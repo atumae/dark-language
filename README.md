@@ -41,15 +41,17 @@ emit("gcd(12, 18) = " + to_string(gcd(12, 18)))
 ## Language
 
 - **Types**: integers (i64), strings, arrays, objects, null
-- **Control flow**: `if`/`else`, `while`, `skip`, `break`
-- **Functions**: `fn`/`give`, recursion
+- **Object literals**: `{"key": value, ...}` builds a dictionary
+- **Control flow**: `if`/`else`, `while`, `for (x of arr)`, `skip`, `break`
+- **Functions**: `fn`/`give`, recursion, and **first-class** — pass functions
+  as values to `map`/`filter`/`reduce`
 - **Operators**: `+ - * / %`, `== != > < >= <=`, bitwise `& | ^ << >>`
 - **Modules**: `extract math` imports a std module; calling an unimported
   function is a compile error
 - **Builtins**: `emit`, `to_string`, `size`, `char_at`, `ord`, `substring`,
-  `to_int`, `kind`, `push`, `slurp`, `make_exe`, `args`
-- **Stdlib**: `math`, `string`, `array`, `map`, `fs`, `io`, `os`, `time`,
-  `random`, `pe`
+  `to_int`, `kind`, `push`, `slurp`, `make_exe`, `args`, `keys`, `values`
+- **Stdlib**: `math`, `string`, `array`, `map`, `json`, `fs`, `io`, `os`,
+  `time`, `random`, `pe`
 
 ## How it works
 
@@ -85,10 +87,12 @@ darkc.exe              — prebuilt Windows bootstrap compiler
 build.sh               — self-hosting rebuild
 std/                   — standard library (Dark)
   parser.dark  codegen.dark  pe.dark  math.dark  string.dark  array.dark  ...
+  json.dark            — JSON parse + stringify (example library)
 examples/
   darkc.dark           — compiler driver
   fib.dark             — example program
   math_demo.dark       — module system demo
+  json_demo.dark       — JSON library demo
 ```
 
 ## License

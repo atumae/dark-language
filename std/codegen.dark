@@ -36,6 +36,7 @@ fn new_ctx() {
     ctx["nlocal"] = 0
     ctx["heap"] = 0
     ctx["errors"] = []
+    ctx["for_count"] = 0
     give ctx
 }
 
@@ -175,12 +176,39 @@ fn gen_expr(ctx, e) {
         give ctx
     }
     if (k == "var") {
-        gen_var_read(ctx, e[1])
+        name = e[1]
+        if (ctx["fns"][name] != null && ctx["params"][name] == null && ctx["locals"][name] == null && ctx["vars"][name] == null) {
+            emitc(ctx, [72, 184])
+            pos = size(ctx["code"])
+            ctx["fix"] = push(ctx["fix"], [pos, "func", name])
+            emitc(ctx, zeros(8))
+            emitc(ctx, [72, 131, 200, 1])
+            give ctx
+        }
+        gen_var_read(ctx, name)
         give ctx
     }
     if (k == "call") {
         name = e[1]
         args = e[2]
+        if (ctx["params"][name] != null || ctx["locals"][name] != null || ctx["vars"][name] != null) {
+            i = size(args) - 1
+            while (i >= 0) {
+                gen_expr(ctx, args[i])
+                emitc(ctx, [80])
+                i = i - 1
+            }
+            gen_var_read(ctx, name)
+            emitc(ctx, [72, 131, 232, 1])
+            emitc(ctx, [72, 139, 64, 8])
+            emitc(ctx, [255, 208])
+            n = size(args)
+            if (n > 0) {
+                emitc(ctx, [72, 131, 196])
+                emitc(ctx, [n * 8])
+            }
+            give ctx
+        }
         i = size(args) - 1
         while (i >= 0) {
             gen_expr(ctx, args[i])
@@ -262,8 +290,23 @@ fn gen_expr(ctx, e) {
         gen_call_runtime(ctx, "__get", 2)
         give ctx
     }
-    if (k == "obj") {
+    if (k == "dict") {
         gen_call_runtime(ctx, "__obj_new", 0)
+        emitc(ctx, [80])
+        i = 0
+        n = size(e[1])
+        while (i < n) {
+            pair = e[1][i]
+            gen_expr(ctx, pair[1])
+            emitc(ctx, [80])
+            gen_expr(ctx, pair[0])
+            emitc(ctx, [80])
+            emitc(ctx, [72, 139, 68, 36, 16])
+            emitc(ctx, [80])
+            gen_call_runtime(ctx, "__set", 3)
+            i = i + 1
+        }
+        emitc(ctx, [88])
         give ctx
     }
     emitc(ctx, [72, 184])
@@ -398,6 +441,51 @@ fn gen_stmt(ctx, s) {
         ctx["loop_e"] = old_e
         give ctx
     }
+    if (k == "for") {
+        varname = s[1]
+        indexvar = s[2]
+        c = ctx["for_count"]
+        ctx["for_count"] = c + 1
+        iter_name = "__it" + to_string(c)
+        idx_name = "__ix" + to_string(c)
+        gen_expr(ctx, s[3])
+        gen_var_write(ctx, iter_name)
+        emitc(ctx, [72, 184])
+        emitc(ctx, to_le8(0))
+        gen_var_write(ctx, idx_name)
+        start_l = new_label(ctx)
+        end_l = new_label(ctx)
+        cont_l = new_label(ctx)
+        old_s = ctx["loop_s"]
+        old_e = ctx["loop_e"]
+        ctx["loop_s"] = cont_l
+        ctx["loop_e"] = end_l
+        set_label(ctx, start_l)
+        cond = ["cmp", ["var", idx_name], "<", ["call", "size", [["var", iter_name]]]]
+        gen_expr(ctx, cond)
+        emitc(ctx, [72, 133, 192])
+        jz(ctx, end_l)
+        gen_var_read(ctx, idx_name)
+        emitc(ctx, [80])
+        gen_var_read(ctx, iter_name)
+        emitc(ctx, [80])
+        gen_call_runtime(ctx, "__get", 2)
+        gen_var_write(ctx, varname)
+        if (indexvar != null) {
+            gen_var_read(ctx, idx_name)
+            gen_var_write(ctx, indexvar)
+        }
+        gen_stmts(ctx, s[4])
+        set_label(ctx, cont_l)
+        gen_var_read(ctx, idx_name)
+        emitc(ctx, [72, 131, 192, 2])
+        gen_var_write(ctx, idx_name)
+        jmp(ctx, start_l)
+        set_label(ctx, end_l)
+        ctx["loop_s"] = old_s
+        ctx["loop_e"] = old_e
+        give ctx
+    }
     if (k == "skip") {
         jmp(ctx, ctx["loop_s"])
         give ctx
@@ -430,6 +518,31 @@ fn collect_locals(ctx, stmts) {
         if (k == "while") {
             collect_locals(ctx, s[2])
         }
+        if (k == "for") {
+            varname = s[1]
+            indexvar = s[2]
+            c = ctx["for_count"]
+            ctx["for_count"] = c + 1
+            iter_name = "__it" + to_string(c)
+            idx_name = "__ix" + to_string(c)
+            if (ctx["params"][varname] == null && ctx["locals"][varname] == null) {
+                ctx["locals"][varname] = ctx["nlocal"]
+                ctx["nlocal"] = ctx["nlocal"] + 1
+            }
+            if (indexvar != null && ctx["params"][indexvar] == null && ctx["locals"][indexvar] == null) {
+                ctx["locals"][indexvar] = ctx["nlocal"]
+                ctx["nlocal"] = ctx["nlocal"] + 1
+            }
+            if (ctx["locals"][iter_name] == null) {
+                ctx["locals"][iter_name] = ctx["nlocal"]
+                ctx["nlocal"] = ctx["nlocal"] + 1
+            }
+            if (ctx["locals"][idx_name] == null) {
+                ctx["locals"][idx_name] = ctx["nlocal"]
+                ctx["nlocal"] = ctx["nlocal"] + 1
+            }
+            collect_locals(ctx, s[4])
+        }
         i = i + 1
     }
     give ctx
@@ -439,8 +552,7 @@ fn gen_fn(ctx, s) {
     name = s[1]
     params = s[2]
     body = s[3]
-    l = new_label(ctx)
-    ctx["fns"][name] = l
+    l = ctx["fns"][name]
     set_label(ctx, l)
     emitc(ctx, [85, 72, 137, 229])
     ctx["params"] = {}
@@ -451,12 +563,14 @@ fn gen_fn(ctx, s) {
     }
     ctx["locals"] = {}
     ctx["nlocal"] = 0
+    ctx["for_count"] = 0
     collect_locals(ctx, body)
     n = ctx["nlocal"]
     if (n > 0) {
         emitc(ctx, [72, 129, 236])
         emitc(ctx, to_le4(n * 8))
     }
+    ctx["for_count"] = 0
     gen_stmts(ctx, body)
     ctx["params"] = {}
     ctx["locals"] = {}
@@ -517,7 +631,7 @@ fn emit_runtime(ctx) {
     ctx["fix"] = push(ctx["fix"], [p, "str", os_id])
     emitc(ctx, [72, 131, 200, 1, 195])
 
-    gen_rt_fn(ctx, "to_string", [85, 72, 137, 229, 72, 139, 69, 16, 72, 209, 248, 69, 49, 228, 72, 133, 192, 121, 9, 72, 247, 216, 65, 188, 1, 0, 0, 0, 72, 131, 236, 32, 72, 137, 230, 72, 49, 201, 72, 133, 192, 117, 8, 198, 6, 48, 72, 255, 193, 235, 27, 72, 49, 210, 72, 199, 195, 10, 0, 0, 0, 72, 247, 243, 128, 194, 48, 136, 20, 14, 72, 255, 193, 72, 133, 192, 117, 229, 73, 137, 205, 77, 137, 232, 77, 1, 224, 73, 141, 80, 17, 82])
+    gen_rt_fn(ctx, "to_string", [85, 72, 137, 229, 72, 139, 69, 16, 168, 1, 116, 2, 201, 195, 72, 209, 248, 69, 49, 228, 72, 133, 192, 121, 9, 72, 247, 216, 65, 188, 1, 0, 0, 0, 72, 131, 236, 32, 72, 137, 230, 72, 49, 201, 72, 133, 192, 117, 8, 198, 6, 48, 72, 255, 193, 235, 27, 72, 49, 210, 72, 199, 195, 10, 0, 0, 0, 72, 247, 243, 128, 194, 48, 136, 20, 14, 72, 255, 193, 72, 133, 192, 117, 229, 73, 137, 205, 77, 137, 232, 77, 1, 224, 73, 141, 80, 17, 82])
     gen_call_runtime(ctx, "__alloc", 1)
     emitc(ctx, [73, 137, 193, 77, 137, 232, 77, 1, 224, 77, 137, 65, 8, 73, 141, 121, 16, 77, 133, 228, 116, 6, 198, 7, 45, 72, 255, 199, 76, 137, 232, 72, 133, 192, 116, 13, 72, 255, 200, 138, 20, 6, 136, 23, 72, 255, 199, 235, 238, 198, 7, 0, 72, 131, 196, 32, 76, 137, 200, 72, 131, 200, 1, 201, 195])
 
@@ -620,8 +734,16 @@ fn emit_runtime(ctx) {
     emitc(ctx, [72, 133, 192, 116, 5, 73, 255, 199, 235, 214, 76, 137, 248, 72, 193, 224, 4, 73, 141, 92, 4, 24, 72, 139, 3, 201, 195, 72, 199, 192, 1, 0, 0, 0, 201, 195])
 
     gen_rt_fn(ctx, "__set", [85, 72, 137, 229, 72, 139, 69, 16, 72, 139, 93, 24, 246, 195, 1, 117, 21, 72, 209, 251, 72, 131, 232, 1, 72, 139, 77, 32, 72, 137, 76, 216, 24, 72, 137, 200, 201, 195, 72, 131, 232, 1, 73, 137, 196, 73, 137, 221, 77, 139, 116, 36, 8, 77, 49, 255, 77, 57, 247, 125, 62, 76, 137, 248, 72, 193, 224, 4, 73, 141, 92, 4, 16, 72, 139, 3, 65, 85, 80])
-    gen_call_runtime(ctx, "__cmp", 2)
-    emitc(ctx, [72, 133, 192, 116, 5, 73, 255, 199, 235, 214, 76, 137, 248, 72, 193, 224, 4, 73, 141, 92, 4, 24, 72, 139, 69, 32, 72, 137, 3, 72, 139, 69, 16, 201, 195, 76, 137, 240, 72, 193, 224, 4, 73, 141, 92, 4, 16, 76, 137, 232, 72, 137, 3, 72, 139, 69, 32, 72, 137, 67, 8, 73, 255, 198, 77, 137, 116, 36, 8, 72, 139, 69, 16, 201, 195])
+     gen_call_runtime(ctx, "__cmp", 2)
+     emitc(ctx, [72, 133, 192, 116, 5, 73, 255, 199, 235, 214, 76, 137, 248, 72, 193, 224, 4, 73, 141, 92, 4, 24, 72, 139, 69, 32, 72, 137, 3, 72, 139, 69, 16, 201, 195, 76, 137, 240, 72, 193, 224, 4, 73, 141, 92, 4, 16, 76, 137, 232, 72, 137, 3, 72, 139, 69, 32, 72, 137, 67, 8, 73, 255, 198, 77, 137, 116, 36, 8, 72, 139, 69, 16, 201, 195])
+
+    gen_rt_fn(ctx, "keys", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 73, 137, 196, 76, 139, 104, 8, 76, 137, 234, 72, 131, 250, 16, 125, 7, 72, 199, 194, 16, 0, 0, 0, 73, 137, 208, 73, 193, 224, 3, 73, 131, 192, 24, 65, 80])
+    gen_call_runtime(ctx, "__alloc", 1)
+    emitc(ctx, [73, 137, 198, 199, 0, 1, 0, 0, 0, 76, 137, 104, 8, 76, 137, 234, 72, 131, 250, 16, 125, 7, 72, 199, 194, 16, 0, 0, 0, 72, 137, 80, 16, 77, 49, 255, 77, 57, 239, 125, 29, 77, 137, 248, 73, 193, 224, 4, 79, 139, 76, 4, 16, 77, 137, 250, 73, 193, 226, 3, 79, 137, 76, 22, 24, 73, 255, 199, 235, 222, 76, 137, 240, 72, 131, 200, 1, 93, 195])
+
+    gen_rt_fn(ctx, "values", [85, 72, 137, 229, 72, 139, 69, 16, 72, 131, 232, 1, 73, 137, 196, 76, 139, 104, 8, 76, 137, 234, 72, 131, 250, 16, 125, 7, 72, 199, 194, 16, 0, 0, 0, 73, 137, 208, 73, 193, 224, 3, 73, 131, 192, 24, 65, 80])
+    gen_call_runtime(ctx, "__alloc", 1)
+    emitc(ctx, [73, 137, 198, 199, 0, 1, 0, 0, 0, 76, 137, 104, 8, 76, 137, 234, 72, 131, 250, 16, 125, 7, 72, 199, 194, 16, 0, 0, 0, 72, 137, 80, 16, 77, 49, 255, 77, 57, 239, 125, 29, 77, 137, 248, 73, 193, 224, 4, 79, 139, 76, 4, 24, 77, 137, 250, 73, 193, 226, 3, 79, 137, 76, 22, 24, 73, 255, 199, 235, 222, 76, 137, 240, 72, 131, 200, 1, 93, 195])
 }
 
 fn gen_program(ctx, ast) {
@@ -676,6 +798,13 @@ fn gen_program(ctx, ast) {
 
     main_l = new_label(ctx)
     jmp(ctx, main_l)
+    i = 0
+    while (i < size(ast)) {
+        if (ast[i][0] == "fn") {
+            ctx["fns"][ast[i][1]] = new_label(ctx)
+        }
+        i = i + 1
+    }
     i = 0
     while (i < size(ast)) {
         if (ast[i][0] == "fn") {
@@ -738,6 +867,13 @@ fn patch_fixups(ctx) {
             addr = base + ctx["argv_off"]
             ctx["code"] = patch_bytes(ctx["code"], pos, to_le8(addr))
         }
+        if (kind == "func") {
+            off = ctx["func_objs"][id]
+            addr = base + off
+            ctx["code"] = patch_bytes(ctx["code"], pos, to_le8(addr))
+            faddr = ctx["code_base"] + ctx["labels"][ctx["fns"][id]]
+            ctx["data"] = patch_bytes(ctx["data"], off + 8, to_le8(faddr))
+        }
         if (kind == "call") {
             target = ctx["fns"][id]
             if (target == null) {
@@ -795,6 +931,21 @@ fn build_data(ctx) {
     data = join_arrays(data, zeros(8))
     ctx["argv_off"] = size(data)
     data = join_arrays(data, zeros(8))
+    ctx["func_objs"] = {}
+    i = 0
+    while (i < size(ctx["fix"])) {
+        f = ctx["fix"][i]
+        if (f[1] == "func") {
+            name = f[2]
+            if (ctx["func_objs"][name] == null) {
+                ctx["func_objs"][name] = size(data)
+                data = join_arrays(data, to_le8(3))
+                data = join_arrays(data, zeros(8))
+            }
+        }
+        i = i + 1
+    }
+    ctx["data"] = data
     give data
 }
 
@@ -806,6 +957,7 @@ fn compile_linux(ast) {
         emitc(ctx, [144])
     }
     ctx["base"] = 4194304 + 120 + size(ctx["code"])
+    ctx["code_base"] = 4194304 + 120
     data = build_data(ctx)
     patch_fixups(ctx)
     give make_elf_full(ctx["code"], data)
@@ -822,6 +974,7 @@ fn compile_windows(ast) {
     data_rva = 4096 + align_up(size(ctx["code"]), 4096)
     idata_rva = data_rva + align_up(size(data), 4096)
     ctx["base"] = 4194304 + data_rva
+    ctx["code_base"] = 4194304 + 4096
     ctx["idata_rva"] = idata_rva
     patch_fixups(ctx)
     give make_pe_full(ctx["code"], data, 4096, data_rva, idata_rva)
@@ -886,6 +1039,7 @@ fn compile_target(ast, target) {
         data_rva = 4096 + align_up(size(ctx["code"]), 4096)
         idata_rva = data_rva + align_up(size(data), 4096)
         ctx["base"] = 4194304 + data_rva
+        ctx["code_base"] = 4194304 + 4096
         ctx["idata_rva"] = idata_rva
         patch_fixups(ctx)
         if (size(ctx["errors"]) > 0) {
@@ -894,6 +1048,7 @@ fn compile_target(ast, target) {
         give ["ok", make_pe_full(ctx["code"], data, 4096, data_rva, idata_rva)]
     }
     ctx["base"] = 4194304 + 120 + size(ctx["code"])
+    ctx["code_base"] = 4194304 + 120
     data = build_data(ctx)
     patch_fixups(ctx)
     if (size(ctx["errors"]) > 0) {
