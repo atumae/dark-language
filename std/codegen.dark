@@ -401,6 +401,8 @@ fn gen_stmt(ctx, s) {
         } else {
             gen_expr(ctx, e)
             emitc(ctx, [80])
+            gen_call_runtime(ctx, "to_string", 1)
+            emitc(ctx, [80])
             gen_call_runtime(ctx, "__emit_str", 1)
         }
         give ctx
