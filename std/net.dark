@@ -1,5 +1,5 @@
 fn connect(host, port) {
-    give tcp_connect(host, port)
+    give tcp_connect(dns(host), port)
 }
 
 fn send(s, data) {
@@ -15,13 +15,8 @@ fn close(s) {
     give 0
 }
 
-fn serve(port, handler) {
-    http_server(port, handler)
-    give 0
-}
-
 fn http_raw(host, port, request) {
-    s = tcp_connect(host, port)
+    s = tcp_connect(dns(host), port)
     tcp_send(s, request)
     r = tcp_recv(s, 65536)
     tcp_close(s)
