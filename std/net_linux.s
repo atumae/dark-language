@@ -161,6 +161,33 @@ tcp_connect:
     test rax, rax
     js 1f
     mov r14, rax
+    
+    # Set SO_RCVTIMEO (20 seconds)
+    mov rax, 54
+    mov rdi, r14
+    mov rsi, 1
+    mov rdx, 20
+    mov r10, 20
+    mov r8, 0
+    mov qword ptr [rsp+16], 20
+    mov qword ptr [rsp+24], 0
+    lea r9, [rsp]
+    mov rdx, 1
+    syscall
+    
+    # Set SO_SNDTIMEO (20 seconds)
+    mov rax, 54
+    mov rdi, r14
+    mov rsi, 1
+    mov rdx, 21
+    mov r10, 20
+    mov r8, 0
+    mov qword ptr [rsp+16], 20
+    mov qword ptr [rsp+24], 0
+    lea r9, [rsp]
+    mov rdx, 1
+    syscall
+    
     mov word ptr [rsp], 2
     mov ax, r13w
     xchg al, ah
