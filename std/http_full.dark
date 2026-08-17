@@ -1,0 +1,78 @@
+extract string
+extract tls
+
+fn http_request_raw(u, method, body) {
+    req = method + " " + u["path"] + " HTTP/1.1\r\n"
+    req = req + "Host: " + u["host"] + "\r\n"
+    req = req + "Connection: close\r\n"
+    req = req + "Accept: */*\r\n"
+    req = req + "User-Agent: dark/0.1\r\n"
+    if (method == "POST") {
+        req = req + "Content-Length: " + to_string(size(body)) + "\r\n"
+    }
+    req = req + "\r\n"
+    if (method == "POST") {
+        req = req + body
+    }
+    give req
+}
+
+fn parse_url(url) {
+    scheme = "https"
+    host = ""
+    path = "/"
+    i = 0
+    if (substring(url, 0, 8) == "https://") {
+        i = 8
+    }
+    if (substring(url, i, i + 1) == "[") {
+        end = index_of(substring(url, i), "]")
+        host = substring(url, i + 1, i + end)
+        i = i + end + 1
+        if (i < size(url) && char_at(url, i) == ":") {
+            i = i + 1
+            port_end = index_of(substring(url, i), "/")
+            if (port_end == 0 - 1) { port_end = size(url) - i }
+            port = to_int(substring(url, i, i + port_end))
+            i = i + port_end
+        }
+    } else {
+        end = index_of(substring(url, i), "/")
+        if (end == 0 - 1) {
+            host = substring(url, i)
+            i = size(url)
+        } else {
+            host = substring(url, i, i + end)
+            i = i + end
+        }
+    }
+    if (i < size(url)) {
+        path = substring(url, i)
+    } else {
+        path = "/"
+    }
+    give {"scheme": scheme, "host": host, "path": path}
+}
+
+fn http_request_raw(u, method, body) {
+    req = method + " " + u["path"] + " HTTP/1.1\r\n"
+    req = req + "Host: " + u["host"] + "\r\n"
+    req = req + "Connection: close\r\n"
+    req = req + "Accept: */*\r\n"
+    req = req + "User-Agent: dark/0.1\r\n"
+    if (method == "POST") {
+        req = req + "Content-Length: " + to_string(size(body)) + "\r\n"
+    }
+    req = req + "\r\n"
+    if (method == "POST") {
+        req = req + body
+    }
+    give req
+}
+
+fn test() {
+    u = parse_url("https://example.com/")
+    give http_request_raw(u, "GET", "")
+}
+
+emit(test())

@@ -1,0 +1,9 @@
+fn test() {
+    give 42
+}
+
+fn main() {
+    emit(to_string(test()) + "\n")
+}
+
+main()

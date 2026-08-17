@@ -1,0 +1,2 @@
+extract string
+emit("index_of: " + to_string(index_of("hello", "ell")) + "\n")
