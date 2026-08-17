@@ -1,3 +1,0 @@
-extract string
-extract tls
-emit("imports work")

@@ -1,5 +1,0 @@
-fn test() {
-    give 42
-}
-
-emit("result: " + to_string(test()) + "\n")
