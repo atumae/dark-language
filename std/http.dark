@@ -125,7 +125,12 @@ fn parse_http(raw) {
         }
         i = i + 1
     }
-    if (headers["Transfer-Encoding"] == "chunked" || headers["transfer-encoding"] == "chunked") {
+    te_val = ""
+    if (headers["Transfer-Encoding"] != "") { te_val = headers["Transfer-Encoding"] }
+    if (headers["transfer-encoding"] != "") { te_val = headers["transfer-encoding"] }
+    if (headers["Transfer-Encoding"] != "") { te_val = headers["Transfer-Encoding"] }
+    if (headers["transfer-encoding"] != "") { te_val = headers["transfer-encoding"] }
+    if (te_val == "chunked") {
         body = dechunk(body)
     }
     give {"code": code, "body": body, "headers": headers}
