@@ -64,6 +64,36 @@ fn http_request_raw(u, method, body) {
 }
 
 // Parse a raw HTTP response into {"code","body","headers"}
+fn dechunk(raw) {
+    body = ""
+    i = 0
+    n = size(raw)
+    while (i < n) {
+        hex = ""
+        while (i < n && char_at(raw, i) != "\r") {
+            hex = hex + char_at(raw, i)
+            i = i + 1
+        }
+        i = i + 2
+        sz = 0
+        j = 0
+        while (j < size(hex)) {
+            c = ord(char_at(hex, j))
+            if (c >= 48 && c <= 57) { c = c - 48 }
+            if (c >= 97 && c <= 102) { c = c - 87 }
+            if (c >= 65 && c <= 70) { c = c - 55 }
+            sz = (sz << 4) | c
+            j = j + 1
+        }
+        if (sz == 0) {
+            break
+        }
+        body = body + substring(raw, i, i + sz)
+        i = i + sz + 2
+    }
+    give body
+}
+
 fn parse_http(raw) {
     hd = index_of(raw, "\r\n\r\n")
     if (hd == 0 - 1) {
@@ -90,6 +120,9 @@ fn parse_http(raw) {
             headers[k] = v
         }
         i = i + 1
+    }
+    if (headers["Transfer-Encoding"] == "chunked" || headers["transfer-encoding"] == "chunked") {
+        body = dechunk(body)
     }
     give {"code": code, "body": body, "headers": headers}
 }
