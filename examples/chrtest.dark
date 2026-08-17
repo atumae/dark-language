@@ -1,0 +1,5 @@
+emit(chr(65) + chr(66) + chr(255))
+emit(to_string(ord(chr(255))))
+emit("\n")
+emit(to_string(ord(chr(0))))
+emit("\n")

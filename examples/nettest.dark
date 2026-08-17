@@ -1,0 +1,5 @@
+extract net
+r = http_raw("example.com", 80, "GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n")
+emit(substring(r, 0, 60))
+emit("\n")
+exit_code(0)

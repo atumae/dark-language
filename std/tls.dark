@@ -1,0 +1,293 @@
+// TLS 1.3 client (AES-128-GCM, X25519, no certificate verification).
+
+fn hex(s) {
+    hx = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+    r = ""
+    i = 0
+    while (i < size(s)) {
+        b = ord(char_at(s, i))
+        r = r + hx[b >> 4] + hx[b & 15]
+        i = i + 1
+    }
+    give r
+}
+
+fn be16(n) {
+    give chr((n >> 8) & 255) + chr(n & 255)
+}
+
+fn be24(n) {
+    give chr((n >> 16) & 255) + chr((n >> 8) & 255) + chr(n & 255)
+}
+
+fn zeros(n) {
+    z = ""
+    i = 0
+    while (i < n) {
+        z = z + chr(0)
+        i = i + 1
+    }
+    give z
+}
+
+fn random_bytes(n) {
+    r = ""
+    i = 0
+    while (i < n) {
+        r = r + chr((random() >> 1) & 255)
+        i = i + 1
+    }
+    give r
+}
+
+fn read_bytes(s, n) {
+    buf = ""
+    while (size(buf) < n) {
+        chunk = tcp_recv(s, n - size(buf))
+        if (size(chunk) == 0) {
+            give buf
+        }
+        buf = buf + chunk
+    }
+    give buf
+}
+
+fn read_record(s) {
+    hdr = read_bytes(s, 5)
+    if (size(hdr) < 5) {
+        give ""
+    }
+    rlen = (ord(char_at(hdr, 3)) << 8) | ord(char_at(hdr, 4))
+    data = read_bytes(s, rlen)
+    give hdr + data
+}
+
+fn hkdf_extract(salt, ikm) {
+    give hmac_d(salt, ikm)
+}
+
+fn hkdf_expand_label(secret, label, context, n) {
+    full = "tls13 " + label
+    info = be16(n) + chr(size(full)) + full + chr(size(context)) + context
+    give hkdf_d(secret, info, n)
+}
+
+fn derive_secret(secret, label, messages) {
+    give hkdf_expand_label(secret, label, sha256_d(messages), 32)
+}
+
+fn nonce(iv, seq) {
+    n = substring(iv, 0, 4)
+    j = 0
+    while (j < 8) {
+        b = ord(char_at(iv, 4 + j))
+        sb = (seq >> ((7 - j) * 8)) & 255
+        n = n + chr(b ^ sb)
+        j = j + 1
+    }
+    give n
+}
+
+fn tls_seal(key, iv, seq, content, ctype) {
+    inner = content + chr(ctype)
+    n = nonce(iv, seq)
+    hdr = chr(23) + chr(3) + chr(3) + be16(size(inner) + 16)
+    give hdr + gcm_seal_d(key, n, hdr, inner)
+}
+
+fn tls_open(key, iv, seq, record) {
+    hdr = substring(record, 0, 5)
+    ct = substring(record, 5, size(record))
+    inner = gcm_open_d(key, nonce(iv, seq), hdr, ct)
+    content = substring(inner, 0, size(inner) - 1)
+    ctype = ord(char_at(inner, size(inner) - 1))
+    give {"content": content, "type": ctype}
+}
+
+fn sni_ext(host) {
+    body = chr(0) + be16(size(host)) + host
+    list = be16(size(body)) + body
+    give be16(0) + be16(size(list)) + list
+}
+
+fn parse_server_keyshare(sh) {
+    i = 2 + 32
+    sid = ord(char_at(sh, i))
+    i = i + 1 + sid + 2 + 1
+    elen = (ord(char_at(sh, i)) << 8) | ord(char_at(sh, i + 1))
+    i = i + 2
+    end = i + elen
+    key = ""
+    while (i < end) {
+        etype = (ord(char_at(sh, i)) << 8) | ord(char_at(sh, i + 1))
+        ln = (ord(char_at(sh, i + 2)) << 8) | ord(char_at(sh, i + 3))
+        edata = substring(sh, i + 4, i + 4 + ln)
+        if (etype == 51) {
+            key = substring(edata, 4, size(edata))
+        }
+        i = i + 4 + ln
+    }
+    give key
+}
+
+fn parse_handshake(data) {
+    msgs = []
+    i = 0
+    while (i + 4 <= size(data)) {
+        htype = ord(char_at(data, i))
+        hlen = (ord(char_at(data, i + 1)) << 16) | (ord(char_at(data, i + 2)) << 8) | ord(char_at(data, i + 3))
+        body = substring(data, i + 4, i + 4 + hlen)
+        msgs = push(msgs, [htype, body])
+        i = i + 4 + hlen
+    }
+    give msgs
+}
+
+fn https_request(host, port, request) {
+    s = tcp_connect(dns(host), port)
+    if (s < 0) {
+        give {"code": 0, "body": "", "headers": {}}
+    }
+    priv = random_bytes(32)
+    base = chr(9) + zeros(31)
+    pub = x25519_d(priv, base)
+
+    ver = chr(0) + chr(43) + chr(0) + chr(3) + chr(2) + chr(3) + chr(4)
+    grp = chr(0) + chr(10) + chr(0) + chr(4) + chr(0) + chr(2) + chr(0) + chr(29)
+    sig = chr(0) + chr(13) + chr(0) + chr(8) + chr(0) + chr(6) + chr(4) + chr(3) + chr(8) + chr(4) + chr(8) + chr(5)
+    ks = chr(0) + chr(51) + chr(0) + chr(38) + chr(0) + chr(36) + chr(0) + chr(29) + chr(0) + chr(32) + pub
+    sni = sni_ext(host)
+    ext = ver + grp + sig + ks + sni
+    chbody = chr(3) + chr(3) + random_bytes(32) + chr(0) + chr(0) + chr(2) + chr(19) + chr(1) + chr(1) + chr(0) + be16(size(ext)) + ext
+    ch = chr(1) + be24(size(chbody)) + chbody
+
+    rec = chr(22) + chr(3) + chr(1) + be16(size(ch)) + ch
+    tcp_send(s, rec)
+
+    // read until ServerHello
+    sh = ""
+    while (size(sh) == 0) {
+        r = read_record(s)
+        if (size(r) == 0) {
+            tcp_close(s)
+            give {"code": 0, "body": "", "headers": {}}
+        }
+        t = ord(char_at(r, 0))
+        if (t == 22) {
+            msgs = parse_handshake(substring(r, 5, size(r)))
+            k = 0
+            while (k < size(msgs)) {
+                if (msgs[k][0] == 2) {
+                    sh = msgs[k][1]
+                }
+                k = k + 1
+            }
+        }
+    }
+
+    server_pub = parse_server_keyshare(sh)
+    ss = x25519_d(priv, server_pub)
+
+    zero = zeros(32)
+    early = hkdf_extract(zero, zero)
+    derived = derive_secret(early, "derived", "")
+    hs = hkdf_extract(derived, ss)
+    sh_full = chr(2) + be24(size(sh)) + sh
+    transcript = ch + sh_full
+    c_hs = derive_secret(hs, "c hs traffic", transcript)
+    s_hs = derive_secret(hs, "s hs traffic", transcript)
+    c_hs_key = hkdf_expand_label(c_hs, "key", "", 16)
+    c_hs_iv = hkdf_expand_label(c_hs, "iv", "", 12)
+    s_hs_key = hkdf_expand_label(s_hs, "key", "", 16)
+    s_hs_iv = hkdf_expand_label(s_hs, "iv", "", 12)
+
+    // read encrypted handshake (EE + Cert + CV + Finished)
+    s_seq = 0
+    hsbuf = ""
+    msgs = []
+    have_finished = 0
+    while (have_finished == 0) {
+        r = read_record(s)
+        if (size(r) == 0) {
+            tcp_close(s)
+            give {"code": 0, "body": "", "headers": {}}
+        }
+        t = ord(char_at(r, 0))
+        if (t == 23) {
+            inner = tls_open(s_hs_key, s_hs_iv, s_seq, r)
+            s_seq = s_seq + 1
+            hsbuf = hsbuf + inner["content"]
+            msgs = parse_handshake(hsbuf)
+            k = 0
+            while (k < size(msgs)) {
+                if (msgs[k][0] == 20) {
+                    have_finished = 1
+                }
+                k = k + 1
+            }
+        }
+    }
+
+    // build transcript pieces from the parsed messages
+    pre = ch + sh_full
+    sf_body = ""
+    k = 0
+    while (k < size(msgs)) {
+        m = msgs[k]
+        full = chr(m[0]) + be24(size(m[1])) + m[1]
+        if (m[0] == 20) {
+            sf_body = m[1]
+        } else {
+            pre = pre + full
+        }
+        k = k + 1
+    }
+
+    // verify server Finished
+    sf_key = hkdf_expand_label(s_hs, "finished", "", 32)
+    expect = hmac_d(sf_key, sha256_d(pre))
+    if (expect != sf_body) {
+        tcp_close(s)
+        give {"code": 0, "body": "", "headers": {}}
+    }
+
+    derived2 = derive_secret(hs, "derived", "")
+    master = hkdf_extract(derived2, zero)
+    with_sf = pre + chr(20) + be24(size(sf_body)) + sf_body
+    c_ap = derive_secret(master, "c ap traffic", with_sf)
+    s_ap = derive_secret(master, "s ap traffic", with_sf)
+    c_ap_key = hkdf_expand_label(c_ap, "key", "", 16)
+    c_ap_iv = hkdf_expand_label(c_ap, "iv", "", 12)
+    s_ap_key = hkdf_expand_label(s_ap, "key", "", 16)
+    s_ap_iv = hkdf_expand_label(s_ap, "iv", "", 12)
+
+    // send client Finished (handshake keys)
+    cf_key = hkdf_expand_label(c_hs, "finished", "", 32)
+    cf_body = hmac_d(cf_key, sha256_d(with_sf))
+    cf = chr(20) + be24(size(cf_body)) + cf_body
+    tcp_send(s, tls_seal(c_hs_key, c_hs_iv, 0, cf, 22))
+
+    // send application data (request)
+    tcp_send(s, tls_seal(c_ap_key, c_ap_iv, 0, request, 23))
+
+    // read response
+    s_seq = 0
+    response = ""
+    while (1) {
+        r = read_record(s)
+        if (size(r) == 0) {
+            break
+        }
+        t = ord(char_at(r, 0))
+        if (t == 23) {
+            inner = tls_open(s_ap_key, s_ap_iv, s_seq, r)
+            s_seq = s_seq + 1
+            response = response + inner["content"]
+        }
+        if (t == 21) {
+            break
+        }
+    }
+    tcp_close(s)
+    give response
+}
