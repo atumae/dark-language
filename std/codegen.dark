@@ -1223,7 +1223,7 @@ fn win_iat_off(id) {
     if (id == 18) {
         give 60 + 10 * 8
     }
-    give 148 + (id - 9) * 8
+    give 156 + (id - 9) * 8
 }
 
 fn build_idata(base) {
