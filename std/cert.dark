@@ -130,7 +130,7 @@ fn parse_x509(cert_der) {
         give {}
     }
     
-    # Version (optional, default v1)
+    // Version (optional, default v1)
     version = 0
     if (elements[0]["tag"] == 160) {  # [0] EXPLICIT
         ver_data = der_parse(elements[0]["value"], 0)
