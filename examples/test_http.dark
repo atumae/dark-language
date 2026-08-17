@@ -1,4 +1,0 @@
-extract http
-r = get("http://example.com/")
-emit("code=" + to_string(r["code"]) + "\n")
-emit("len=" + to_string(size(r["body"])) + "\n")

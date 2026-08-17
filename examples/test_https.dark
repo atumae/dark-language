@@ -1,4 +1,0 @@
-extract tls
-r = https_request("example.com", 443, "GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n")
-emit("len=" + to_string(size(r)) + "\n")
-emit(substring(r, 0, 100) + "\n")
