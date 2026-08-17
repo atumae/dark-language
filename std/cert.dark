@@ -1,0 +1,270 @@
+// X.509 certificate parsing and verification
+
+// Parse DER-encoded length (supports short and long form)
+fn der_parse_length(data, i) {
+    if (i >= size(data)) {
+        give 0
+    }
+    first = ord(char_at(data, i))
+    if (first < 128) {
+        give {len: first, consumed: 1}
+    } else {
+        len_bytes = first & 127
+        if (i + 1 + len_bytes > size(data)) {
+            give {len: 0, consumed: 0}
+        }
+        len = 0
+        j = 0
+        while (j < len_bytes) {
+            len = (len << 8) | ord(char_at(data, i + 1 + j))
+            j = j + 1
+        }
+        give {len: len, consumed: 1 + len_bytes}
+    }
+}
+
+// Parse DER-encoded ASN.1 structure
+fn der_parse(data, i) {
+    if (i >= size(data)) {
+        give {tag: 0, len: 0, value: "", consumed: 0}
+    }
+    tag = ord(char_at(data, i))
+    len_info = der_parse_length(data, i + 1)
+    if (len_info["len"] == 0 && len_info["consumed"] == 0) {
+        give {tag: tag, len: 0, value: "", consumed: 0}
+    }
+    val_start = i + 1 + len_info["consumed"]
+    val_end = val_start + len_info["len"]
+    if (val_end > size(data)) {
+        give {tag: tag, len: 0, value: "", consumed: 0}
+    }
+    value = substring(data, val_start, val_end)
+    give {tag: tag, len: len_info["len"], value: value, consumed: 1 + len_info["consumed"] + len_info["len"]}
+}
+
+// Parse SEQUENCE - returns array of parsed elements
+fn der_parse_sequence(data, i) {
+    elem = der_parse(data, i)
+    if (elem["tag"] != 48) {
+        give []
+    }
+    elements = []
+    val = elem["value"]
+    pos = 0
+    while (pos < size(val)) {
+        elem = der_parse(val, 0)
+        if (elem["consumed"] == 0) {
+            break
+        }
+        elements = push(elements, elem)
+        pos = pos + elem["consumed"]
+    }
+    give elements
+}
+
+// Extract OID as dotted string
+fn oid_to_string(oid_data) {
+    if (size(oid_data) < 2) {
+        give ""
+    }
+    first = ord(char_at(oid_data, 0))
+    second = ord(char_at(oid_data, 1))
+    first_byte = first * 40 + second
+    result = to_string(first_byte) + "."
+    i = 1
+    val = 0
+    while (i < size(oid_data)) {
+        b = ord(char_at(oid_data, i))
+        val = (val << 7) | (b & 127)
+        if ((b & 128) == 0) {
+            result = result + "." + to_string(val)
+            val = 0
+        }
+        i = i + 1
+    }
+    give result
+}
+
+// Extract BIT STRING (skip unused bits)
+fn der_parse_bitstring(data, i) {
+    elem = der_parse(data, i)
+    if (elem["tag"] != 3) {
+        give ""
+    }
+    if (elem["len"] < 1) {
+        give ""
+    }
+    unused = ord(char_at(elem["value"], 0))
+    give substring(elem["value"], 1, size(elem["value"]))
+}
+
+// Parse UTCTime (YYMMDDhhmmssZ)
+fn parse_utc_time(time_str) {
+    if (size(time_str) < 13) {
+        give {year: 0, month: 0, day: 0, hour: 0, min: 0, sec: 0}
+    }
+    year = to_int(substring(time_str, 0, 2)) + 2000
+    if (year > 2050) { year = year - 100 }
+    month = to_int(substring(time_str, 2, 4))
+    day = to_int(substring(time_str, 4, 6))
+    hour = to_int(substring(time_str, 6, 8))
+    min = to_int(substring(time_str, 8, 10))
+    sec = to_int(substring(time_str, 10, 12))
+    give {year: year, month: month, day: day, hour: hour, min: min, sec: sec}
+}
+
+// Parse X.509 certificate - returns map with fields
+fn parse_x509(cert_der) {
+    # Parse outer SEQUENCE
+    cert = der_parse(cert_der, 0)
+    if (cert["tag"] != 48) {
+        give {}
+    }
+    tbs_cert = der_parse(cert["value"], 0)
+    if (tbs_cert["tag"] != 48) {
+        give {}
+    }
+    
+    elements = der_parse_sequence(tbs_cert["value"], 0)
+    if (size(elements) < 8) {
+        give {}
+    }
+    
+    # Version (optional, default v1)
+    version = 0
+    if (elements[0]["tag"] == 160) {  # [0] EXPLICIT
+        ver_data = der_parse(elements[0]["value"], 0)
+        version = to_int(ver_data["value"])
+    }
+    
+    # Serial number
+    serial = der_parse(elements[1]["value"], 0)["value"]
+    
+    # Signature algorithm
+    sig_alg = der_parse_sequence(elements[2]["value"], 0)
+    sig_alg_oid = ""
+    if (size(sig_alg) > 0) {
+        sig_alg_oid = oid_to_string(der_parse(sig_alg[0]["value"], 0)["value"])
+    }
+    
+    # Issuer
+    issuer_elements = der_parse_sequence(elements[3]["value"], 0)
+    issuer = ""
+    i = 0
+    while (i < size(issuer_elements)) {
+        rdn = der_parse_sequence(issuer_elements[i]["value"], 0)
+        j = 0
+        while (j < size(rdn)) {
+            attr = der_parse_sequence(rdn[j]["value"], 0)
+            if (size(attr) >= 2) {
+                oid = oid_to_string(der_parse(attr[0]["value"], 0)["value"])
+                val = der_parse(attr[1]["value"], 0)["value"]
+                # Simple conversion to string
+                val_str = ""
+                k = 0
+                while (k < size(val)) {
+                    val_str = val_str + char_at(val, k)
+                    k = k + 1
+                }
+                issuer = issuer + oid + "=" + val_str + ","
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    # Validity
+    validity = der_parse_sequence(elements[4]["value"], 0)
+    not_before = parse_utc_time(der_parse(validity[0]["value"], 0)["value"])
+    not_after = parse_utc_time(der_parse(validity[1]["value"], 0)["value"])
+    
+    # Subject
+    subject_elements = der_parse_sequence(elements[5]["value"], 0)
+    subject = ""
+    i = 0
+    while (i < size(subject_elements)) {
+        rdn = der_parse_sequence(subject_elements[i]["value"], 0)
+        j = 0
+        while (j < size(rdn)) {
+            attr = der_parse_sequence(rdn[j]["value"], 0)
+            if (size(attr) >= 2) {
+                oid = oid_to_string(der_parse(attr[0]["value"], 0)["value"])
+                val = der_parse(attr[1]["value"], 0)["value"]
+                val_str = ""
+                k = 0
+                while (k < size(val)) {
+                    val_str = val_str + char_at(val, k)
+                    k = k + 1
+                }
+                subject = subject + oid + "=" + val_str + ","
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    # Subject Public Key Info
+    spki = der_parse_sequence(elements[6]["value"], 0)
+    spki_alg = der_parse_sequence(spki[0]["value"], 0)
+    spki_alg_oid = ""
+    if (size(spki_alg) > 0) {
+        spki_alg_oid = oid_to_string(der_parse(spki_alg[0]["value"], 0)["value"])
+    }
+    
+    spki_key = der_parse(spki[1]["value"], 0)
+    spki_key_bits = der_parse_bitstring(spki[1]["value"], 0)
+    
+    # Parse public key based on algorithm
+    pubkey = {}
+    if (spki_alg_oid == "1.2.840.10045.2.1") {  # ecPublicKey
+        # EC public key - parse SEC1 format
+        ec_params = der_parse(spki_alg[1]["value"], 0)
+        curve_oid = ""
+        if (size(spki_alg) > 1) {
+            curve_oid = oid_to_string(der_parse(spki_alg[1]["value"], 0)["value"])
+        }
+        if (size(spki_key_bits) > 0) {
+            ec_point = der_parse(spki_key_bits, 0)
+            if (ec_point["tag"] == 4) {  # OCTET STRING
+                # SEC1 format: 0x04 || X || Y
+                if (size(ec_point["value"]) == 65 && ord(char_at(ec_point["value"], 0)) == 4) {
+                    x = substring(ec_point["value"], 1, 33)
+                    y = substring(ec_point["value"], 33, 65)
+                    pubkey = {"type": "ec", "curve": curve_oid, "x": x, "y": y}
+                }
+            }
+        }
+    } else if (spki_alg_oid == "1.2.840.113549.1.1.1") {  # rsaEncryption
+        # RSA public key
+        rsa_key = der_parse_sequence(spki_key_bits, 0)
+        if (size(rsa_key) >= 2) {
+            n = der_parse(rsa_key[0]["value"], 0)["value"]
+            e = der_parse(rsa_key[1]["value"], 0)["value"]
+            pubkey = {"type": "rsa", "n": n, "e": e}
+        }
+    }
+    
+    give {
+        "version": version,
+        "serial": serial,
+        "sig_alg": sig_alg_oid,
+        "issuer": issuer,
+        "not_before": not_before,
+        "not_after": not_after,
+        "subject": subject,
+        "spki_alg": spki_alg_oid,
+        "pubkey": pubkey
+    }
+}
+
+// Verify CertificateVerify signature (ECDSA P-256 placeholder)
+fn verify_cert_verify(cert_pubkey, transcript_hash, signature) {
+    # Placeholder - full ECDSA P-256 verification needed
+    give 0
+}
+
+# Simple certificate chain verification (placeholder)
+fn verify_cert_chain(cert_chain, trust_anchors, host) {
+    # Placeholder - full chain verification needed
+    give 0
+}

@@ -27,6 +27,12 @@ fn tokenize(src) {
             i = i + 1
             skip
         }
+        if (ch == "#") {
+            while (i < n && char_at(src, i) != "\n") {
+                i = i + 1
+            }
+            skip
+        }
         if (ch == "/" && i + 1 < n && char_at(src, i + 1) == "/") {
             while (i < n && char_at(src, i) != "\n") {
                 i = i + 1
