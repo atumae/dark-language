@@ -6,6 +6,11 @@ fn rand_int(a, b) {
     give random_range(a, b)
 }
 
+fn random_range(a, b) {
+    if (b <= a) { give a }
+    give a + random() % (b - a)
+}
+
 fn rand_bool() {
     give random() % 2
 }
@@ -33,5 +38,5 @@ fn shuffle(arr) {
 }
 
 fn random_float() {
-    give to_float(random()) / to_float(9223372036854775807)
+    give random() % 1000000
 }

@@ -1,5 +1,32 @@
 fn escape(s) {
-    give html_escape(s)
+    r = ""
+    i = 0
+    while (i < size(s)) {
+        c = char_at(s, i)
+        if (c == "&") {
+            r = r + "&amp;"
+        } else {
+            if (c == "<") {
+                r = r + "&lt;"
+            } else {
+                if (c == ">") {
+                    r = r + "&gt;"
+                } else {
+                    if (c == "\"") {
+                        r = r + "&quot;"
+                    } else {
+                        if (c == "'") {
+                            r = r + "&#39;"
+                        } else {
+                            r = r + c
+                        }
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    give r
 }
 
 fn page(title, body) {

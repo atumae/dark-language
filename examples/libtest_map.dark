@@ -1,0 +1,13 @@
+extract map
+
+m = {}
+m = {"a": 1, "b": 2}
+hk = has_key(m, "a")
+emit("has_key=" + to_string(hk) + "\n")
+go = get_or(m, "c", 99)
+emit("get_or=" + to_string(go) + "\n")
+m2 = merge(m, {"c": 3})
+emit("merge=" + to_string(size_map(m2)) + "\n")
+tp = to_pairs(m)
+emit("pairs=" + to_string(size(tp)) + "\n")
+emit("keys=" + to_string(size(keys(m))) + "\n")

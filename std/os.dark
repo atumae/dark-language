@@ -15,7 +15,7 @@ fn getenv(name) {
 }
 
 fn setenv(name, value) {
-    give system("export " + name + "=" + value)
+    give setenv(name, value)
 }
 
 fn exit(code) {
@@ -24,6 +24,9 @@ fn exit(code) {
 }
 
 fn cwd() {
+    if (os() == "windows") {
+        give trim(system("echo %CD%"))
+    }
     give trim(system("pwd"))
 }
 
@@ -32,14 +35,23 @@ fn hostname() {
 }
 
 fn uname() {
+    if (os() == "windows") {
+        give trim(system("ver"))
+    }
     give trim(system("uname -a"))
 }
 
 fn cpu_count() {
+    if (os() == "windows") {
+        give to_int(trim(system("echo %NUMBER_OF_PROCESSORS%")))
+    }
     give to_int(trim(system("nproc")))
 }
 
 fn memory_total() {
+    if (os() == "windows") {
+        give to_int(trim(system("powershell -NoProfile -Command \"(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory\"")))
+    }
     give to_int(trim(system("free -b | awk '/Mem:/ {print $2}'")))
 }
 

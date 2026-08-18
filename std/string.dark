@@ -35,7 +35,7 @@ fn lower(s) {
 
 fn capitalize(s) {
     if (size(s) == 0) { give s }
-    give upper(char_at(s, 0)) + substring(s, 1)
+    give upper(char_at(s, 0)) + substring(s, 1, size(s))
 }
 
 fn title(s) {
@@ -116,11 +116,11 @@ fn split_words(s) {
 }
 
 fn starts_with_num(s, sub) {
-    give starts_with(s, sub)
+    give starts_with(s, to_string(sub))
 }
 
 fn ends_with_num(s, sub) {
-    give ends_with(s, sub)
+    give ends_with(s, to_string(sub))
 }
 
 fn is_space(c) {

@@ -1,0 +1,16 @@
+extract html
+
+h = escape("<b>&amp;</b>")
+emit("escape=" + h + "\n")
+pg = page("Title", "<p>hi</p>")
+emit("page_len=" + to_string(size(pg)) + "\n")
+h1 = h1("Hello")
+emit("h1=" + h1 + "\n")
+p = p("para")
+emit("p=" + p + "\n")
+a = a("https://x", "link")
+emit("a=" + a + "\n")
+u = ul(["a", "b"])
+emit("ul=" + u + "\n")
+st = style()
+emit("style_len=" + to_string(size(st)) + "\n")
