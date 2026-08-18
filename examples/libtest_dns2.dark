@@ -1,0 +1,2 @@
+ip = dns("example.com")
+emit("ip=" + to_string(ip) + "\n")

@@ -1,0 +1,9 @@
+extract http
+
+r = get("https://example.com/")
+emit("get_code=" + to_string(r["code"]) + "\n")
+emit("get_len=" + to_string(size(r["body"])) + "\n")
+
+p = post_headers("http://httpbin.org/post", "a=1&b=2", {"Content-Type": "application/x-www-form-urlencoded", "X-Test": "hello"})
+emit("post_code=" + to_string(p["code"]) + "\n")
+emit("post_len=" + to_string(size(p["body"])) + "\n")

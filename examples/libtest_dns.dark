@@ -1,0 +1,5 @@
+extract fs
+a = dns("example.com")
+write_text("dns_a.txt", to_string(a) + "\n")
+b = dns("moscow.megafon.ru")
+write_text("dns_b.txt", to_string(b) + "\n")

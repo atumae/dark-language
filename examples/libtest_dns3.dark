@@ -1,0 +1,6 @@
+a = dns("example.com")
+emit("a=" + to_string(a) + "\n")
+b = dns("google.com")
+emit("b=" + to_string(b) + "\n")
+c = dns("moscow.megafon.ru")
+emit("c=" + to_string(c) + "\n")

@@ -1,0 +1,3 @@
+extract fs
+ip = dns("example.com")
+write_text("wdns.txt", to_string(ip) + "\n")

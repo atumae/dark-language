@@ -1,0 +1,3 @@
+extract fs
+s = tcp_connect(1746147226, 80)
+write_text("wc3.txt", "conn=" + to_string(s) + "\n")

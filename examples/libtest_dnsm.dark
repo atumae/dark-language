@@ -1,0 +1,2 @@
+ip = dns("moscow.megafon.ru")
+emit("ip=" + to_string(ip) + "\n")

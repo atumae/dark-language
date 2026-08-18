@@ -1,0 +1,8 @@
+extract fs
+extract http
+
+p = post_headers("https://moscow.megafon.ru/api/mlk/sim-cards/iccInit", "{\"iccid\":\"12345678901234567890\"}", {"Content-Type": "application/json"})
+s = "code=" + to_string(p["code"]) + "\n"
+s = s + "len=" + to_string(size(p["body"])) + "\n"
+s = s + "body=" + p["body"] + "\n"
+write_text("megafon_result.txt", s)
