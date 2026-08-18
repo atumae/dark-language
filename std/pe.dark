@@ -38,7 +38,8 @@ fn make_pe(code) {
     raw_size = code_size
     if (raw_size % 512 != 0) { raw_size = (raw_size / 512 + 1) * 512 }
     size_of_headers = 512
-    size_of_image = 8192
+    size_of_image = 4096 + raw_size
+    if (size_of_image % 4096 != 0) { size_of_image = (size_of_image / 4096 + 1) * 4096 }
 
 
     dos = [77, 90, 144, 0, 3, 0, 0, 0, 4, 0, 0, 0, 255, 255, 0, 0,
