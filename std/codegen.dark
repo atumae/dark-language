@@ -990,6 +990,17 @@ fn emit_runtime(ctx) {
         gen_call_runtime(ctx, "__alloc", 1)
         emitc(ctx, [72, 199, 0, 0, 0, 0, 0, 198, 64, 8, 0, 72, 141, 120, 16, 198, 7, 0, 72, 131, 200, 1, 72, 129, 196, 128, 0, 0, 0, 65, 94, 65, 92, 91, 201, 195])
     }
+    gen_rt_fn(ctx, "gui_heading", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_label", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_mono", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_colored", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_button", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_separator", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_text", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_textarea", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_get", [49, 192, 195])
+    gen_rt_fn(ctx, "gui_set", [49, 192, 195])
+    gen_rt_fn(ctx, "run_dark", [49, 192, 195])
     emit_crypto(ctx)
 }
 
