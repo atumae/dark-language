@@ -1,9 +1,9 @@
+extract math
+
 fn fib(n) {
-    if (n < 2) {
-        give n
-    }
+    if (n < 2) { give n }
     give fib(n - 1) + fib(n - 2)
 }
 
-emit("fib(10) = ")
-exit_code(fib(10))
+emit("fib(10) = " + to_string(fib(10)))
+emit("gcd(12, 18) = " + to_string(gcd(12, 18)))

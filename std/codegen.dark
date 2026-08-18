@@ -599,8 +599,8 @@ fn gen_rt_fn(ctx, name, bytes) {
     give ctx
 }
 
-# Embed the pre-assembled crypto blob (sha256/hmac/hkdf/x25519/aes-gcm) as a
-# single position-independent binary. Entry offsets are fixed at build time.
+// Embed the pre-assembled crypto blob (sha256/hmac/hkdf/x25519/aes-gcm) as a
+// single position-independent binary. Entry offsets are fixed at build time.
 fn emit_crypto(ctx) {
     blob = crypto_blob()
     base = size(ctx["code"])

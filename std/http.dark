@@ -37,7 +37,6 @@ fn http_request_raw(u, method, body) {
     req = req + "Connection: close\r\n"
     req = req + "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
     req = req + "Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7\r\n"
-    req = req + "Accept-Encoding: gzip, deflate, br\r\n"
     req = req + "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n"
     req = req + "Connection: close\r\n"
     if (method == "POST") {
@@ -98,6 +97,12 @@ fn dechunk(raw) {
 }
 
 // Parse a raw HTTP response into {"code","body","headers"}
+fn hv(headers, name) {
+    v = headers[name]
+    if (v == null) { give "" }
+    give v
+}
+
 fn parse_http(raw) {
     hd = index_of(raw, "\r\n\r\n")
     if (hd == 0 - 1) {
@@ -125,12 +130,11 @@ fn parse_http(raw) {
         }
         i = i + 1
     }
-    te_val = ""
-    if (headers["Transfer-Encoding"] != "") { te_val = headers["Transfer-Encoding"] }
-    if (headers["transfer-encoding"] != "") { te_val = headers["transfer-encoding"] }
-    if (headers["Transfer-Encoding"] != "") { te_val = headers["Transfer-Encoding"] }
-    if (headers["transfer-encoding"] != "") { te_val = headers["transfer-encoding"] }
-    if (te_val == "chunked") {
+    te_val = hv(headers, "Transfer-Encoding")
+    if (te_val == "") {
+        te_val = hv(headers, "transfer-encoding")
+    }
+    if (te_val != "" && index_of(te_val, "chunked") != 0 - 1) {
         body = dechunk(body)
     }
     give {"code": code, "body": body, "headers": headers}
