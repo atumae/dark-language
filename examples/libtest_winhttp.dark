@@ -1,9 +1,0 @@
-extract fs
-extract http
-
-ip = dns("moscow.megafon.ru")
-r = get("https://example.com/")
-s = "ip=" + to_string(ip) + "\n"
-s = s + "code=" + to_string(r["code"]) + "\n"
-s = s + "len=" + to_string(size(r["body"])) + "\n"
-write_text("win_http.txt", s)

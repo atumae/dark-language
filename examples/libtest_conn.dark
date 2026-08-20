@@ -1,6 +1,0 @@
-ip = dns("moscow.megafon.ru")
-emit("ip=" + to_string(ip) + "\n")
-s = tcp_connect(ip, 443)
-emit("connected=" + to_string(s) + "\n")
-tcp_close(s)
-emit("done\n")

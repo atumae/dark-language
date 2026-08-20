@@ -1,4 +1,0 @@
-extract fs
-extract http
-r = get("https://example.com/")
-write_text("w2.txt", "https_code=" + to_string(r["code"]) + " len=" + to_string(size(r["body"])) + "\n")

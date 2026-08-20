@@ -1,4 +1,0 @@
-extract fs
-extract http
-p = post_headers("https://moscow.megafon.ru/api/mlk/sim-cards/iccInit", "{\"iccid\":\"12345678901234567890\"}", {"Content-Type": "application/json"})
-write_text("m.txt", "code=" + to_string(p["code"]) + " len=" + to_string(size(p["body"])) + "\n")

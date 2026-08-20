@@ -1,6 +1,0 @@
-extract fs
-extract net
-s = connect("example.com", 80)
-write_text("wc.txt", "conn=" + to_string(s) + "\n")
-close(s)
-write_text("wc2.txt", "closed\n")

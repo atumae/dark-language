@@ -1,4 +1,0 @@
-extract math
-emit("gcd(12,18)=" + to_string(gcd(12, 18)) + "\n")
-emit("is_prime(7)=" + to_string(is_prime(7)) + "\n")
-exit_code(0)
